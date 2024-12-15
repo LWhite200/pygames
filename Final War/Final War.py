@@ -10,6 +10,7 @@ pygame.display.set_caption('Final War')
 clock = pygame.time.Clock()
 
 world = [[0 for _ in range(wth)] for _ in range(hth)]  # 0: red enemy, 1: blue player, 2: white being dragged, 3: Magenta can be placed
+wObj = [[None for _ in range(wth)] for _ in range(hth)]
 worldScore = [0, 0]
 curTurn = 0
 
@@ -34,6 +35,8 @@ class playObj:
         self.doneAttack = False
         self.inRange = False
         self.isAttacking = False
+        self.maxHP = 100
+        self.curHP = 100
 
     def moveRandom(self):
         ranStep = random.randint(1, 4)
@@ -60,16 +63,47 @@ class enemObj:
         self.curHP = 100
 
     def moveRandom(self):
+        xx, yy = self.x // 50, self.y // 50
         ranStep = random.randint(1, 4)
-        if ranStep == 1 and self.x >= 50:
+        if ranStep == 1 and self.x >= 50 and not wObj[xx - 1][yy]:
+            wObj[xx][yy] = None
+            wObj[xx - 1][yy] = self
             self.x -= 50
-        elif ranStep == 2 and self.x < width - 50:
+        elif ranStep == 2 and self.x < width - 50 and not wObj[xx + 1][yy]:
+            wObj[xx][yy] = None
+            wObj[xx + 1][yy] = self
             self.x += 50
-        elif ranStep == 3 and self.y < height - 50:
+        elif ranStep == 3 and self.y < height - 50 and not wObj[xx][yy + 1]:
+            wObj[xx][yy] = None
+            wObj[xx][yy + 1] = self
             self.y += 50
-        elif ranStep == 4 and self.y >= 50:
+        elif ranStep == 4 and self.y >= 50 and not wObj[xx][yy - 1]:
+            wObj[xx][yy] = None
+            wObj[xx][yy - 1] = self
             self.y -= 50
         self.rect.topleft = (self.x, self.y)
+
+    def attackPlayer(self):
+
+        directions = [
+            (-50, 0), (50, 0), (0, -50), (0, 50), 
+            (-50, -50), (50, -50), (-50, 50), (50, 50) ]
+
+        for dx, dy in directions:
+            adj_x = (self.x + dx) // 50
+            adj_y = (self.y + dy) // 50
+
+            if 0 <= adj_x < hth and 0 <= adj_y < wth:
+                adjObj = wObj[adj_x][adj_y]
+                if isinstance(adjObj, playObj):
+                    print(f"Enemy at ({self.x},{self.y}) attacking player at ({adjObj.x},{adjObj.y})")
+                    adjObj.curHP -= 50
+
+                    if adjObj.curHP <= 0:
+                        PlayerObjs.remove(adjObj)
+                        updateBoard()
+                        break
+                    break
 
 PlayerObjs.append(playObj(400, 200))
 PlayerObjs.append(playObj(400, 300))
@@ -93,6 +127,7 @@ def updateBoard():
     for i in range(hth):
         for j in range(wth):
             world[i][j] = 0 
+            wObj[i][j] = None
 
     for player in PlayerObjs:
         playX = player.rect.x // 50
@@ -101,6 +136,7 @@ def updateBoard():
         world[playX][playY] = 1
         visit[playX][playY] = True
         worldScore[world[playX][playY]] += 1
+        wObj[playX][playY] = player
 
     for enemy in EnemyObjs:
         enemX = enemy.rect.x // 50
@@ -109,6 +145,7 @@ def updateBoard():
         world[enemX][enemY] = 0
         visit[enemX][enemY] = True
         worldScore[world[enemX][enemY]] += 1
+        wObj[enemX][enemY] = enemy
 
     while q:
         px, py = q.popleft()
@@ -137,6 +174,7 @@ while True:
         if event.type == pygame.KEYDOWN:
             for enemy in EnemyObjs:
                 enemy.moveRandom()
+                enemy.attackPlayer()
                 enemy.canBeAttacked = False
 
             for player in PlayerObjs:
@@ -226,11 +264,13 @@ while True:
 
     screen.blit(background, background_rect)
 
+    # World Grid display
     for i in range(0, hth):
         for j in range(0, wth):
             color = "Red" if world[i][j] == 0 else "Blue" if world[i][j] == 1 else "White" if world[i][j] == 2 else "Magenta"
             pygame.draw.rect(screen, color, pygame.Rect(i * 50, j * 50, 25, 25))
 
+    # Enemy
     for enemy in EnemyObjs:
         screen.blit(enemy.surface, enemy.rect)
         if enemy.canBeAttacked:
@@ -249,13 +289,16 @@ while True:
             (-50, -50), (50, -50), (-50, 50), (50, 50) 
         ]
         
-        for enemy in EnemyObjs:
-            for dx, dy in surrounding_positions:
-                if player.x + dx == enemy.x and player.y + dy == enemy.y:
+        for dx, dy in surrounding_positions:
+            adjacent_x = (player.x + dx) // 50
+            adjacent_y = (player.y + dy) // 50
+
+            if 0 <= adjacent_x < hth and 0 <= adjacent_y < wth:
+                obj = wObj[adjacent_x][adjacent_y]
+                if isinstance(obj, enemObj):  
                     player.inRange = True
                     if not player.doneAttack:
-                        enemy.canBeAttacked = True
-                        break  
+                        obj.canBeAttacked = True
 
         screen.blit(player.surface, player.rect)
         if not player.hasMoved or (player.inRange and not player.doneAttack) or (player.inRange and player.isAttacking):
