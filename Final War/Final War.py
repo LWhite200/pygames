@@ -27,6 +27,24 @@ background_rect = background.get_rect(center=(width // 2, height // 2))
 # ------------------------------------------------------
 # ------------------------------------------------------
 
+buttonObjs = []
+class Buttons:
+    def __init__(self, x, y, name, onForever):
+        self.x = x
+        self.y = y
+        self.name = name
+        self.onForever = onForever
+        self.isOn = onForever
+        # All sideMenu will have onForever be false
+        self.surface = pygame.Surface((100, 30))
+        self.surface.fill('White')
+        self.rect = self.surface.get_rect(topleft=(self.x, self.y))
+
+buttonObjs.append(Buttons(0, 0, "Attack", False))
+buttonObjs.append(Buttons(0, 0, "Build", False))
+buttonObjs.append(Buttons(0, 0, "Endure", False))
+buttonObjs.append(Buttons(0, 0, "Split", False))
+
 PlayerObjs = []
 class playObj:
     def __init__(self, x, y, type):
@@ -50,7 +68,7 @@ class playObj:
         if type == "norm":
             self.maxHP = 100
             self.curHP = 100
-            self.power = 100
+            self.power = 50
             self.moveDistance = 3
 
     def moveRandom(self):
@@ -175,16 +193,109 @@ def updateBoard():
                 world[nx][ny] = color
                 q.append((nx, ny))
                 worldScore[color] += 1
+    
 
-def displayMove():
+updateBoard()
+
+# ------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------
+
+sideMenu = [False, None]
+
+def displayBoard():
+    # World Grid display
+    for i in range(0, hth):
+        for j in range(0, wth):
+            color = "Red" if world[i][j] == 0 else "Blue" if world[i][j] == 1 else "White" if world[i][j] == 2 else "Magenta"
+            pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 25, 25))
+
+    # Enemy Display
+    for enemy in EnemyObjs:
+        screen.blit(enemy.surface, enemy.rect)
+        if enemy.canBeAttacked:
+            color = "White"
+            nm_surf = pygame.Surface((12, 12))
+            nm_surf.fill(color)
+            nm_rect = nm_surf.get_rect(center=enemy.rect.center)
+            screen.blit(nm_surf, nm_rect)
+
+        enemy.canBeAttacked = False
+
+    # Player Display
+    for player in PlayerObjs:
+        player.canAttack = False
+
+        surrounding_positions = [
+            (-wrdDiv, 0), (wrdDiv, 0), (0, -wrdDiv), (0, wrdDiv), 
+            (-wrdDiv, -wrdDiv), (wrdDiv, -wrdDiv), (-wrdDiv, wrdDiv), (wrdDiv, wrdDiv) 
+        ]
+        
+        for dx, dy in surrounding_positions:
+            adjacent_x = (player.x + dx) // wrdDiv
+            adjacent_y = (player.y + dy) // wrdDiv
+
+            if 0 <= adjacent_x < hth and 0 <= adjacent_y < wth:
+                obj = wObj[adjacent_x][adjacent_y]
+                if isinstance(obj, enemObj):  
+                    player.inRange = True
+                    if not player.doneAttack:
+                        obj.canBeAttacked = True
+
+        screen.blit(player.surface, player.rect)
+        if not player.hasMoved or (player.inRange and not player.doneAttack) or (player.inRange and player.isAttacking):
+            color = "Red" if player.isAttacking else "White"
+            nm_surf = pygame.Surface((12, 12))
+            nm_surf.fill(color)
+            nm_rect = nm_surf.get_rect(center=player.rect.center)
+            screen.blit(nm_surf, nm_rect)
+
+
+    textArea = pygame.Surface((width // 2.5, height // 6))
+    textArea.fill('Grey')
+    screen.blit(textArea, (width - (width // 2.5), height - (height // 6)))
+
+    scoreText = str("Turn  " + str(curTurn) + "     Score  " + str(worldScore[1]) + "  :  " + str(worldScore[0]))
+    score_surf = font.render(scoreText, False, (254, 254, 254))
+    screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 5))
+
     scoreText = str(toDisplayText)
     score_surf = font.render(scoreText, False, (254, 254, 254))
     screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 35))
 
-updateBoard()
+    if sideMenu[0]:  # When a player is selected
+        curPlay = sideMenu[1]
 
-# ------------------------------------------------------
-# ------------------------------------------------------
+        idx = 0
+        for button in buttonObjs:
+            if not button.onForever:
+                button.rect.x = curPlay.rect.x + 15
+                button.rect.y = curPlay.rect.y + (idx * 35) + 10
+                button.isOn = True
+                idx += 1
+
+            # Draw the button background
+            pygame.draw.rect(screen, "Grey", button.rect)
+            # Draw the button text
+            score_surf = font.render(button.name, False, (0, 0, 0))
+            screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))
+
+        
+def closeSideMenu():
+    sideMenu[0], sideMenu[1] = False, None
+    for button in buttonObjs:
+            if not button.onForever:
+                button.isOn = False
+
+
+        
+
+
+
+# ------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------
+
 
 playerAttacking = None
 
@@ -193,6 +304,7 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
         if event.type == pygame.KEYDOWN:
+            sideMenu[0], sideMenu[1] = False, None
             for enemy in EnemyObjs:
                 enemy.moveRandom()
                 enemy.attackPlayer()
@@ -209,7 +321,40 @@ while True:
             updateBoard()
 
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1: 
+            
+            if event.button == 1:
+                if playerAttacking:
+                    for enemy in EnemyObjs:
+                        if enemy.rect.collidepoint(event.pos) and playerAttacking:  
+                            if abs(playerAttacking.x - enemy.x) <= wrdDiv and abs(playerAttacking.y - enemy.y) <= wrdDiv:
+                                toDisplayText = "Enemy Was Attacked"
+                                enemy.curHP -= playerAttacking.power
+                                playerAttacking.doneAttack = True 
+                                playerAttacking.hasMoved = True
+                                playerAttacking.isAttacking = False
+                                playerAttacking = None
+
+                                if enemy.curHP <= 0:
+                                    EnemyObjs.remove(enemy)
+                                    updateBoard()
+                                    break
+                            break 
+                for button in buttonObjs:
+                    if button.rect.collidepoint(event.pos) and button.isOn:
+                        if button.name == "Attack":
+                            if sideMenu[1].inRange:
+                                toDisplayText = "Attack clicked!"
+                                playerAttacking = sideMenu[1]
+                                playerAttacking.isAttacking = True
+                            else:
+                                toDisplayText = "Not In Range"
+                        elif button.name == "Build":
+                            toDisplayText = "Build clicked!"
+                        elif button.name == "Endure":
+                            toDisplayText = "Endure clicked!"
+                        elif button.name == "Split":
+                            toDisplayText = "Split clicked!"
+                        closeSideMenu()
                 for player in PlayerObjs:
                     if player.rect.collidepoint(event.pos) and not player.hasMoved:  
                         dragging_player = player
@@ -217,31 +362,13 @@ while True:
                         drag_offset_x = player.rect.x - event.pos[0]
                         drag_offset_y = player.rect.y - event.pos[1]
                         break
+                closeSideMenu()
             elif event.button == 3:  
                 for player in PlayerObjs:
-                    if player.rect.collidepoint(event.pos) and not player.doneAttack and player.inRange:  
-                        player.isAttacking = True
-                        playerAttacking = player  
+                    if player.rect.collidepoint(event.pos) and not player.doneAttack:
+                        sideMenu[0], sideMenu[1] = True, player
                     else:
                         player.isAttacking = False
-
-                for enemy in EnemyObjs:
-                    if enemy.rect.collidepoint(event.pos) and playerAttacking:  
-                        if abs(playerAttacking.x - enemy.x) <= wrdDiv and abs(playerAttacking.y - enemy.y) <= wrdDiv:
-                            toDisplayText = "Enemy Was Attacked"
-                            enemy.curHP -= playerAttacking.power
-                            playerAttacking.doneAttack = True 
-                            playerAttacking.hasMoved = True
-                            playerAttacking.isAttacking = False
-                            playerAttacking = None
-
-                            if enemy.curHP <= 0:
-                                EnemyObjs.remove(enemy)
-                                updateBoard()
-                                break
-      
-
-                        break
 
         if event.type == pygame.MOUSEMOTION: 
             if dragging_player:
@@ -285,60 +412,7 @@ while True:
 
     screen.blit(background, background_rect)
 
-    # World Grid display
-    for i in range(0, hth):
-        for j in range(0, wth):
-            color = "Red" if world[i][j] == 0 else "Blue" if world[i][j] == 1 else "White" if world[i][j] == 2 else "Magenta"
-            pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 25, 25))
-
-    # Enemy
-    for enemy in EnemyObjs:
-        screen.blit(enemy.surface, enemy.rect)
-        if enemy.canBeAttacked:
-            color = "White"
-            nm_surf = pygame.Surface((12, 12))
-            nm_surf.fill(color)
-            nm_rect = nm_surf.get_rect(center=enemy.rect.center)
-            screen.blit(nm_surf, nm_rect)
-
-        enemy.canBeAttacked = False
-
-    for player in PlayerObjs:
-        player.canAttack = False
-        surrounding_positions = [
-            (-wrdDiv, 0), (wrdDiv, 0), (0, -wrdDiv), (0, wrdDiv), 
-            (-wrdDiv, -wrdDiv), (wrdDiv, -wrdDiv), (-wrdDiv, wrdDiv), (wrdDiv, wrdDiv) 
-        ]
-        
-        for dx, dy in surrounding_positions:
-            adjacent_x = (player.x + dx) // wrdDiv
-            adjacent_y = (player.y + dy) // wrdDiv
-
-            if 0 <= adjacent_x < hth and 0 <= adjacent_y < wth:
-                obj = wObj[adjacent_x][adjacent_y]
-                if isinstance(obj, enemObj):  
-                    player.inRange = True
-                    if not player.doneAttack:
-                        obj.canBeAttacked = True
-
-        screen.blit(player.surface, player.rect)
-        if not player.hasMoved or (player.inRange and not player.doneAttack) or (player.inRange and player.isAttacking):
-            color = "Red" if player.isAttacking else "White"
-            nm_surf = pygame.Surface((12, 12))
-            nm_surf.fill(color)
-            nm_rect = nm_surf.get_rect(center=player.rect.center)
-            screen.blit(nm_surf, nm_rect)
-
-
-    textArea = pygame.Surface((width // 2.5, height // 6))
-    textArea.fill('Grey')
-    screen.blit(textArea, (width - (width // 2.5), height - (height // 6)))
-
-    scoreText = str("Turn  " + str(curTurn) + "     Score  " + str(worldScore[1]) + "  :  " + str(worldScore[0]))
-    score_surf = font.render(scoreText, False, (254, 254, 254))
-    screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 5))
-
-    displayMove()
+    displayBoard()
 
     pygame.display.update()
     clock.tick(60)
