@@ -1,3 +1,5 @@
+" Things to add: barriers, types, ranged attacks, enemy a.i."
+
 from collections import deque
 import pygame  # type: ignore
 import random
@@ -5,6 +7,7 @@ pygame.init()
 
 width, height = 1000, 600
 wth, hth = (height // 100) * 2, (width // 100) * 2
+wrdDiv = 50 # translate phyiscal location to world grid
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Final War')
 clock = pygame.time.Clock()
@@ -13,8 +16,9 @@ world = [[0 for _ in range(wth)] for _ in range(hth)]  # 0: red enemy, 1: blue p
 wObj = [[None for _ in range(wth)] for _ in range(hth)]
 worldScore = [0, 0]
 curTurn = 0
+toDisplayText = "The Game Has Begun"
 
-font = pygame.font.Font('font/Pixeltype.ttf', 80)
+font = pygame.font.Font('font/Pixeltype.ttf', 40)
 
 background = pygame.Surface((width, height))
 background.fill('Black')
@@ -25,9 +29,10 @@ background_rect = background.get_rect(center=(width // 2, height // 2))
 
 PlayerObjs = []
 class playObj:
-    def __init__(self, x, y):
+    def __init__(self, x, y, type):
         self.x = x
         self.y = y
+        self.type = type
         self.surface = pygame.Surface((25, 25))
         self.surface.fill('Orange')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
@@ -35,19 +40,29 @@ class playObj:
         self.doneAttack = False
         self.inRange = False
         self.isAttacking = False
-        self.maxHP = 100
-        self.curHP = 100
+        self.maxHP = 0
+        self.curHP = 0
+        self.power = 0
+        self.moveDistance = 1
+        self.getStats(type)
+    
+    def getStats(self, type):
+        if type == "norm":
+            self.maxHP = 100
+            self.curHP = 100
+            self.power = 100
+            self.moveDistance = 3
 
     def moveRandom(self):
-        ranStep = random.randint(1, 4)
-        if ranStep == 1 and self.x >= 50:
-            self.x -= 50
-        elif ranStep == 2 and self.x < width - 50:
-            self.x += 50
-        elif ranStep == 3 and self.y < height - 50:
-            self.y += 50
-        elif ranStep == 4 and self.y >= 50:
-            self.y -= 50
+        ranStep = random.randint(1, 5)
+        if ranStep == 1 and self.x >= wrdDiv:
+            self.x -= wrdDiv
+        elif ranStep == 2 and self.x < width - wrdDiv:
+            self.x += wrdDiv
+        elif ranStep == 3 and self.y < height - wrdDiv:
+            self.y += wrdDiv
+        elif ranStep == 4 and self.y >= wrdDiv:
+            self.y -= wrdDiv
         self.rect.topleft = (self.x, self.y)
 
 EnemyObjs = []
@@ -63,41 +78,42 @@ class enemObj:
         self.curHP = 100
 
     def moveRandom(self):
-        xx, yy = self.x // 50, self.y // 50
+        xx, yy = self.x // wrdDiv, self.y // wrdDiv
         ranStep = random.randint(1, 4)
-        if ranStep == 1 and self.x >= 50 and not wObj[xx - 1][yy]:
+        if ranStep == 1 and self.x >= wrdDiv and not wObj[xx - 1][yy]:
             wObj[xx][yy] = None
             wObj[xx - 1][yy] = self
-            self.x -= 50
-        elif ranStep == 2 and self.x < width - 50 and not wObj[xx + 1][yy]:
+            self.x -= wrdDiv
+        elif ranStep == 2 and self.x < width - wrdDiv and not wObj[xx + 1][yy]:
             wObj[xx][yy] = None
             wObj[xx + 1][yy] = self
-            self.x += 50
-        elif ranStep == 3 and self.y < height - 50 and not wObj[xx][yy + 1]:
+            self.x += wrdDiv
+        elif ranStep == 3 and self.y < height - wrdDiv and not wObj[xx][yy + 1]:
             wObj[xx][yy] = None
             wObj[xx][yy + 1] = self
-            self.y += 50
-        elif ranStep == 4 and self.y >= 50 and not wObj[xx][yy - 1]:
+            self.y += wrdDiv
+        elif ranStep == 4 and self.y >= wrdDiv and not wObj[xx][yy - 1]:
             wObj[xx][yy] = None
             wObj[xx][yy - 1] = self
-            self.y -= 50
+            self.y -= wrdDiv
         self.rect.topleft = (self.x, self.y)
 
     def attackPlayer(self):
 
         directions = [
-            (-50, 0), (50, 0), (0, -50), (0, 50), 
-            (-50, -50), (50, -50), (-50, 50), (50, 50) ]
+            (-wrdDiv, 0), (wrdDiv, 0), (0, -wrdDiv), (0, wrdDiv), 
+            (-wrdDiv, -wrdDiv), (wrdDiv, -wrdDiv), (-wrdDiv, wrdDiv), (wrdDiv, wrdDiv) ]
 
         for dx, dy in directions:
-            adj_x = (self.x + dx) // 50
-            adj_y = (self.y + dy) // 50
+            adj_x = (self.x + dx) // wrdDiv
+            adj_y = (self.y + dy) // wrdDiv
 
             if 0 <= adj_x < hth and 0 <= adj_y < wth:
                 adjObj = wObj[adj_x][adj_y]
                 if isinstance(adjObj, playObj):
-                    print(f"Enemy at ({self.x},{self.y}) attacking player at ({adjObj.x},{adjObj.y})")
-                    adjObj.curHP -= 50
+                    global toDisplayText
+                    toDisplayText = str(f"Enemy at ({self.x},{self.y}) attacking player at ({adjObj.x},{adjObj.y})")
+                    adjObj.curHP -= wrdDiv
 
                     if adjObj.curHP <= 0:
                         PlayerObjs.remove(adjObj)
@@ -105,9 +121,9 @@ class enemObj:
                         break
                     break
 
-PlayerObjs.append(playObj(400, 200))
-PlayerObjs.append(playObj(400, 300))
-PlayerObjs.append(playObj(400, 400))
+PlayerObjs.append(playObj(400, 200, "norm"))
+PlayerObjs.append(playObj(400, 300, "norm"))
+PlayerObjs.append(playObj(400, 400, "norm"))
 EnemyObjs.append(enemObj(550, 200))
 EnemyObjs.append(enemObj(550, 300))
 EnemyObjs.append(enemObj(550, 400))
@@ -130,8 +146,8 @@ def updateBoard():
             wObj[i][j] = None
 
     for player in PlayerObjs:
-        playX = player.rect.x // 50
-        playY = player.rect.y // 50
+        playX = player.rect.x // wrdDiv
+        playY = player.rect.y // wrdDiv
         q.append((playX, playY))
         world[playX][playY] = 1
         visit[playX][playY] = True
@@ -139,8 +155,8 @@ def updateBoard():
         wObj[playX][playY] = player
 
     for enemy in EnemyObjs:
-        enemX = enemy.rect.x // 50
-        enemY = enemy.rect.y // 50
+        enemX = enemy.rect.x // wrdDiv
+        enemY = enemy.rect.y // wrdDiv
         q.append((enemX, enemY))
         world[enemX][enemY] = 0
         visit[enemX][enemY] = True
@@ -159,6 +175,11 @@ def updateBoard():
                 world[nx][ny] = color
                 q.append((nx, ny))
                 worldScore[color] += 1
+
+def displayMove():
+    scoreText = str(toDisplayText)
+    score_surf = font.render(scoreText, False, (254, 254, 254))
+    screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 35))
 
 updateBoard()
 
@@ -206,9 +227,9 @@ while True:
 
                 for enemy in EnemyObjs:
                     if enemy.rect.collidepoint(event.pos) and playerAttacking:  
-                        if abs(playerAttacking.x - enemy.x) <= 50 and abs(playerAttacking.y - enemy.y) <= 50:
-                            print("Enemy Was Attacked Successfully")
-                            enemy.curHP -= 50
+                        if abs(playerAttacking.x - enemy.x) <= wrdDiv and abs(playerAttacking.y - enemy.y) <= wrdDiv:
+                            toDisplayText = "Enemy Was Attacked"
+                            enemy.curHP -= playerAttacking.power
                             playerAttacking.doneAttack = True 
                             playerAttacking.hasMoved = True
                             playerAttacking.isAttacking = False
@@ -227,34 +248,34 @@ while True:
                 mouse_x, mouse_y = event.pos
                 new_x = mouse_x + drag_offset_x
                 new_y = mouse_y + drag_offset_y
-                new_x = (new_x // 50) * 50
-                new_y = (new_y // 50) * 50
+                new_x = (new_x // wrdDiv) * wrdDiv
+                new_y = (new_y // wrdDiv) * wrdDiv
 
-                max_dist = 3  # Movement distance limit
-                if abs(new_x - original_x) > max_dist * 50:
-                    new_x = original_x + max_dist * 50 if new_x > original_x else original_x - max_dist * 50
-                if abs(new_y - original_y) > max_dist * 50:
-                    new_y = original_y + max_dist * 50 if new_y > original_y else original_y - max_dist * 50
+                max_dist = dragging_player.moveDistance  # Movement distance limit
+                if abs(new_x - original_x) > max_dist * wrdDiv:
+                    new_x = original_x + max_dist * wrdDiv if new_x > original_x else original_x - max_dist * wrdDiv
+                if abs(new_y - original_y) > max_dist * wrdDiv:
+                    new_y = original_y + max_dist * wrdDiv if new_y > original_y else original_y - max_dist * wrdDiv
 
                 dragging_player.rect.topleft = (new_x, new_y)
 
                 for dx in range(-max_dist, max_dist + 1):
                     for dy in range(-max_dist, max_dist + 1):
-                        if 0 <= (original_x // 50 + dx) < hth and 0 <= (original_y // 50 + dy) < wth:
+                        if 0 <= (original_x // wrdDiv + dx) < hth and 0 <= (original_y // wrdDiv + dy) < wth:
                             if abs(dx) <= max_dist and abs(dy) <= max_dist:
                                 if (dx == 0 and dy == 0):
-                                    world[(original_x // 50) + dx][(original_y // 50) + dy] = 2
+                                    world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 2
                                 else:
-                                    world[(original_x // 50) + dx][(original_y // 50) + dy] = 3
+                                    world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 3
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1 and dragging_player:
                 if dragging_player:
-                    new_x = dragging_player.rect.x // 50
-                    new_y = dragging_player.rect.y // 50
+                    new_x = dragging_player.rect.x // wrdDiv
+                    new_y = dragging_player.rect.y // wrdDiv
                     for i, player in enumerate(PlayerObjs):
                         if player == dragging_player:
-                            PlayerObjs[i].x = new_x * 50
-                            PlayerObjs[i].y = new_y * 50
+                            PlayerObjs[i].x = new_x * wrdDiv
+                            PlayerObjs[i].y = new_y * wrdDiv
                             PlayerObjs[i].hasMoved = True
                             PlayerObjs[i].isAttacking = False
                             PlayerObjs[i].inRange = False
@@ -268,7 +289,7 @@ while True:
     for i in range(0, hth):
         for j in range(0, wth):
             color = "Red" if world[i][j] == 0 else "Blue" if world[i][j] == 1 else "White" if world[i][j] == 2 else "Magenta"
-            pygame.draw.rect(screen, color, pygame.Rect(i * 50, j * 50, 25, 25))
+            pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 25, 25))
 
     # Enemy
     for enemy in EnemyObjs:
@@ -285,13 +306,13 @@ while True:
     for player in PlayerObjs:
         player.canAttack = False
         surrounding_positions = [
-            (-50, 0), (50, 0), (0, -50), (0, 50), 
-            (-50, -50), (50, -50), (-50, 50), (50, 50) 
+            (-wrdDiv, 0), (wrdDiv, 0), (0, -wrdDiv), (0, wrdDiv), 
+            (-wrdDiv, -wrdDiv), (wrdDiv, -wrdDiv), (-wrdDiv, wrdDiv), (wrdDiv, wrdDiv) 
         ]
         
         for dx, dy in surrounding_positions:
-            adjacent_x = (player.x + dx) // 50
-            adjacent_y = (player.y + dy) // 50
+            adjacent_x = (player.x + dx) // wrdDiv
+            adjacent_y = (player.y + dy) // wrdDiv
 
             if 0 <= adjacent_x < hth and 0 <= adjacent_y < wth:
                 obj = wObj[adjacent_x][adjacent_y]
@@ -308,10 +329,16 @@ while True:
             nm_rect = nm_surf.get_rect(center=player.rect.center)
             screen.blit(nm_surf, nm_rect)
 
+
+    textArea = pygame.Surface((width // 2.5, height // 6))
+    textArea.fill('Grey')
+    screen.blit(textArea, (width - (width // 2.5), height - (height // 6)))
+
     scoreText = str("Turn  " + str(curTurn) + "     Score  " + str(worldScore[1]) + "  :  " + str(worldScore[0]))
     score_surf = font.render(scoreText, False, (254, 254, 254))
-    score_rect = score_surf.get_rect(center=(500, 550))
-    screen.blit(score_surf, score_rect)
+    screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 5))
+
+    displayMove()
 
     pygame.display.update()
     clock.tick(60)
