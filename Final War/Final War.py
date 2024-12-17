@@ -44,6 +44,20 @@ buttonObjs.append(Buttons(0, 0, "Attack", False))
 buttonObjs.append(Buttons(0, 0, "Build", False))
 buttonObjs.append(Buttons(0, 0, "Endure", False))
 buttonObjs.append(Buttons(0, 0, "Split", False))
+buttonObjs.append(Buttons(900, 550, "Reset", True)) # always appear
+
+fenceObjs = []
+class Fences:
+    def __init__(self, x, y, team):
+        self.x = x
+        self.y = y
+        self.team = team
+        self.HP = 100
+        self.surface = pygame.Surface((30, 30))
+        self.surface.fill('Yellow')
+        self.rect = self.surface.get_rect(topleft=(self.x, self.y))
+
+fenceObjs.append(Fences(100, 100, True))
 
 PlayerObjs = []
 class playObj:
@@ -162,6 +176,11 @@ def updateBoard():
         for j in range(wth):
             world[i][j] = 0 
             wObj[i][j] = None
+    
+    for fence in fenceObjs:
+        fX = fence.rect.x // wrdDiv
+        fY = fence.rect.x // wrdDiv
+        wObj[fX][fY] = fence
 
     for player in PlayerObjs:
         playX = player.rect.x // wrdDiv
@@ -209,6 +228,11 @@ def displayBoard():
         for j in range(0, wth):
             color = "Red" if world[i][j] == 0 else "Blue" if world[i][j] == 1 else "White" if world[i][j] == 2 else "Magenta"
             pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 25, 25))
+
+    for fence in fenceObjs:
+        pygame.draw.rect(screen, "Yellow", fence.rect)
+
+
 
     # Enemy Display
     for enemy in EnemyObjs:
@@ -263,22 +287,29 @@ def displayBoard():
     score_surf = font.render(scoreText, False, (254, 254, 254))
     screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 35))
 
-    if sideMenu[0]:  # When a player is selected
-        curPlay = sideMenu[1]
 
-        idx = 0
-        for button in buttonObjs:
-            if not button.onForever:
-                button.rect.x = curPlay.rect.x + 15
-                button.rect.y = curPlay.rect.y + (idx * 35) + 10
+    idx = 0
+    for button in buttonObjs:
+        if not button.onForever:
+            if sideMenu[0]:
+                button.rect.x = sideMenu[1].rect.x + 15
+                button.rect.y = sideMenu[1].rect.y + (idx * 35) + 10
                 button.isOn = True
                 idx += 1
-
+                # Draw the button background
+                pygame.draw.rect(screen, "Grey", button.rect)
+                    # Draw the button text
+                score_surf = font.render(button.name, False, (0, 0, 0))
+                screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))
+        else:
             # Draw the button background
             pygame.draw.rect(screen, "Grey", button.rect)
             # Draw the button text
             score_surf = font.render(button.name, False, (0, 0, 0))
-            screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))
+            screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))    
+
+
+            
 
         
 def closeSideMenu():
@@ -288,7 +319,25 @@ def closeSideMenu():
                 button.isOn = False
 
 
-        
+def reset():
+    global PlayerObjs, EnemyObjs, fenceObjs, world, wObj, worldScore, curTurn, toDisplayText
+    world = [[0 for _ in range(wth)] for _ in range(hth)]
+    wObj = [[None for _ in range(wth)] for _ in range(hth)]
+    worldScore = [0, 0]
+    curTurn = 0
+    toDisplayText = "The Game Has Begun"
+    PlayerObjs = []
+    EnemyObjs = []
+    fenceObjs = []
+    PlayerObjs.append(playObj(400, 200, "norm"))
+    PlayerObjs.append(playObj(400, 300, "norm"))
+    PlayerObjs.append(playObj(400, 400, "norm"))
+    EnemyObjs.append(enemObj(550, 200))
+    EnemyObjs.append(enemObj(550, 300))
+    EnemyObjs.append(enemObj(550, 400))
+    updateBoard()
+
+
 
 
 
@@ -354,6 +403,8 @@ while True:
                             toDisplayText = "Endure clicked!"
                         elif button.name == "Split":
                             toDisplayText = "Split clicked!"
+                        elif button.name == "Reset":
+                            reset()
                         closeSideMenu()
                 for player in PlayerObjs:
                     if player.rect.collidepoint(event.pos) and not player.hasMoved:  
