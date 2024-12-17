@@ -53,11 +53,11 @@ class Fences:
         self.y = y
         self.team = team
         self.HP = 100
-        self.surface = pygame.Surface((30, 30))
+        self.surface = pygame.Surface((25, 25))
         self.surface.fill('Yellow')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
 
-fenceObjs.append(Fences(100, 100, True))
+
 
 PlayerObjs = []
 class playObj:
@@ -145,7 +145,7 @@ class enemObj:
                 if isinstance(adjObj, playObj):
                     global toDisplayText
                     toDisplayText = str(f"Enemy at ({self.x},{self.y}) attacking player at ({adjObj.x},{adjObj.y})")
-                    adjObj.curHP -= wrdDiv
+                    adjObj.curHP -= 1
 
                     if adjObj.curHP <= 0:
                         PlayerObjs.remove(adjObj)
@@ -179,7 +179,7 @@ def updateBoard():
     
     for fence in fenceObjs:
         fX = fence.rect.x // wrdDiv
-        fY = fence.rect.x // wrdDiv
+        fY = fence.rect.y // wrdDiv
         wObj[fX][fY] = fence
 
     for player in PlayerObjs:
@@ -221,13 +221,14 @@ updateBoard()
 # ------------------------------------------------------------------------------------------------------------
 
 sideMenu = [False, None]
+buttonMoveUp = False
 
 def displayBoard():
     # World Grid display
     for i in range(0, hth):
         for j in range(0, wth):
             color = "Red" if world[i][j] == 0 else "Blue" if world[i][j] == 1 else "White" if world[i][j] == 2 else "Magenta"
-            pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 25, 25))
+            pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 35, 35))
 
     for fence in fenceObjs:
         pygame.draw.rect(screen, "Yellow", fence.rect)
@@ -289,6 +290,8 @@ def displayBoard():
 
 
     idx = 0
+    moveUp = False
+    global buttonMoveUp
     for button in buttonObjs:
         if not button.onForever:
             if sideMenu[0]:
@@ -296,9 +299,17 @@ def displayBoard():
                 button.rect.y = sideMenu[1].rect.y + (idx * 35) + 10
                 button.isOn = True
                 idx += 1
-                # Draw the button background
+
+
+                if button.rect.y >= height:
+                    moveUp = True
+
+                if buttonMoveUp:
+                    button.rect.y -= 100
+
+                
+
                 pygame.draw.rect(screen, "Grey", button.rect)
-                    # Draw the button text
                 score_surf = font.render(button.name, False, (0, 0, 0))
                 screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))
         else:
@@ -306,11 +317,11 @@ def displayBoard():
             pygame.draw.rect(screen, "Grey", button.rect)
             # Draw the button text
             score_surf = font.render(button.name, False, (0, 0, 0))
-            screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))    
-
-
-            
-
+            screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))  
+    if moveUp: 
+        buttonMoveUp = True 
+    else: 
+        buttonMoveUp = False  
         
 def closeSideMenu():
     sideMenu[0], sideMenu[1] = False, None
@@ -347,123 +358,165 @@ def reset():
 
 
 playerAttacking = None
+buildMode = False
 
 while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-        if event.type == pygame.KEYDOWN:
-            sideMenu[0], sideMenu[1] = False, None
-            for enemy in EnemyObjs:
-                enemy.moveRandom()
-                enemy.attackPlayer()
-                enemy.canBeAttacked = False
 
-            for player in PlayerObjs:
-                player.hasMoved = False
-                player.doneAttack = False
-                player.isAttacking = False
-                player.inRange = False  # Reset the range flag
+    # Fence Placement [Very Weird but no other way works]
+    if buildMode:
+        dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
+        newDir = []
+        px, py = playerAttacking.rect.x, playerAttacking.rect.y 
 
-            playerAttacking = None
-            curTurn += 1
-            updateBoard()
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            
-            if event.button == 1:
-                if playerAttacking:
-                    for enemy in EnemyObjs:
-                        if enemy.rect.collidepoint(event.pos) and playerAttacking:  
-                            if abs(playerAttacking.x - enemy.x) <= wrdDiv and abs(playerAttacking.y - enemy.y) <= wrdDiv:
-                                toDisplayText = "Enemy Was Attacked"
-                                enemy.curHP -= playerAttacking.power
-                                playerAttacking.doneAttack = True 
-                                playerAttacking.hasMoved = True
-                                playerAttacking.isAttacking = False
-                                playerAttacking = None
-
-                                if enemy.curHP <= 0:
-                                    EnemyObjs.remove(enemy)
-                                    updateBoard()
-                                    break
-                            break 
-                for button in buttonObjs:
-                    if button.rect.collidepoint(event.pos) and button.isOn:
-                        if button.name == "Attack":
-                            if sideMenu[1].inRange:
-                                toDisplayText = "Attack clicked!"
-                                playerAttacking = sideMenu[1]
-                                playerAttacking.isAttacking = True
-                            else:
-                                toDisplayText = "Not In Range"
-                        elif button.name == "Build":
-                            toDisplayText = "Build clicked!"
-                        elif button.name == "Endure":
-                            toDisplayText = "Endure clicked!"
-                        elif button.name == "Split":
-                            toDisplayText = "Split clicked!"
-                        elif button.name == "Reset":
-                            reset()
-                        closeSideMenu()
-                for player in PlayerObjs:
-                    if player.rect.collidepoint(event.pos) and not player.hasMoved:  
-                        dragging_player = player
-                        original_x, original_y = player.x, player.y
-                        drag_offset_x = player.rect.x - event.pos[0]
-                        drag_offset_y = player.rect.y - event.pos[1]
-                        break
+        for dx, dy in dir:
+            newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
+            if newX in range(0, hth) and newY in range(0, wth) and not wObj[newX][newY]:
+                newDir.append((newX, newY))
+                world[newX][newY] = 3 
+        
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        grid_x = (mouse_x // wrdDiv) * wrdDiv
+        grid_y = (mouse_y // wrdDiv) * wrdDiv
+        
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                playerAttacking = None
+                buildMode = False 
                 closeSideMenu()
-            elif event.button == 3:  
-                for player in PlayerObjs:
-                    if player.rect.collidepoint(event.pos) and not player.doneAttack:
-                        sideMenu[0], sideMenu[1] = True, player
-                    else:
-                        player.isAttacking = False
-
-        if event.type == pygame.MOUSEMOTION: 
-            if dragging_player:
-                mouse_x, mouse_y = event.pos
-                new_x = mouse_x + drag_offset_x
-                new_y = mouse_y + drag_offset_y
-                new_x = (new_x // wrdDiv) * wrdDiv
-                new_y = (new_y // wrdDiv) * wrdDiv
-
-                max_dist = dragging_player.moveDistance  # Movement distance limit
-                if abs(new_x - original_x) > max_dist * wrdDiv:
-                    new_x = original_x + max_dist * wrdDiv if new_x > original_x else original_x - max_dist * wrdDiv
-                if abs(new_y - original_y) > max_dist * wrdDiv:
-                    new_y = original_y + max_dist * wrdDiv if new_y > original_y else original_y - max_dist * wrdDiv
-
-                dragging_player.rect.topleft = (new_x, new_y)
-
-                for dx in range(-max_dist, max_dist + 1):
-                    for dy in range(-max_dist, max_dist + 1):
-                        if 0 <= (original_x // wrdDiv + dx) < hth and 0 <= (original_y // wrdDiv + dy) < wth:
-                            if abs(dx) <= max_dist and abs(dy) <= max_dist:
-                                if (dx == 0 and dy == 0):
-                                    world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 2
-                                else:
-                                    world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 3
-        if event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1 and dragging_player:
-                if dragging_player:
-                    new_x = dragging_player.rect.x // wrdDiv
-                    new_y = dragging_player.rect.y // wrdDiv
-                    for i, player in enumerate(PlayerObjs):
-                        if player == dragging_player:
-                            PlayerObjs[i].x = new_x * wrdDiv
-                            PlayerObjs[i].y = new_y * wrdDiv
-                            PlayerObjs[i].hasMoved = True
-                            PlayerObjs[i].isAttacking = False
-                            PlayerObjs[i].inRange = False
-                            break
                 updateBoard()
-                dragging_player = None
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+
+                    if wObj[grid_x // wrdDiv][grid_y // wrdDiv] is None and (grid_x // wrdDiv, grid_y // wrdDiv) in newDir: 
+                        new_fence = Fences(grid_x, grid_y, True) 
+                        fenceObjs.append(new_fence)
+                        wObj[grid_x // wrdDiv][grid_y // wrdDiv] = new_fence
+                        world[grid_x // wrdDiv][grid_y // wrdDiv] = 2
+                        playerAttacking.hasMoved, playerAttacking.doneAttack = True, True
+                    buildMode = False
+                    playerAttacking = None
+                    closeSideMenu()
+                    updateBoard()
+
+                    
+    if not buildMode:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            if event.type == pygame.KEYDOWN:
+                sideMenu[0], sideMenu[1] = False, None
+                for enemy in EnemyObjs:
+                    enemy.moveRandom()
+                    enemy.attackPlayer()
+                    enemy.canBeAttacked = False
+
+                for player in PlayerObjs:
+                    player.hasMoved = False
+                    player.doneAttack = False
+                    player.isAttacking = False
+                    player.inRange = False  # Reset the range flag
+
+                playerAttacking = None
+                curTurn += 1
+                updateBoard()
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                
+                if event.button == 1:
+                    if playerAttacking:
+                        for enemy in EnemyObjs:
+                            if enemy.rect.collidepoint(event.pos) and playerAttacking:  
+                                if abs(playerAttacking.x - enemy.x) <= wrdDiv and abs(playerAttacking.y - enemy.y) <= wrdDiv:
+                                    toDisplayText = "Enemy Was Attacked"
+                                    enemy.curHP -= playerAttacking.power
+                                    playerAttacking.doneAttack = True 
+                                    playerAttacking.hasMoved = True
+                                    playerAttacking.isAttacking = False
+                                    playerAttacking = None
+
+                                    if enemy.curHP <= 0:
+                                        EnemyObjs.remove(enemy)
+                                        updateBoard()
+                                        break
+                                break 
+                    for button in buttonObjs:
+                        if button.rect.collidepoint(event.pos) and button.isOn:
+                            if button.name == "Attack":
+                                if sideMenu[1].inRange:
+                                    toDisplayText = "Attack clicked!"
+                                    playerAttacking = sideMenu[1]
+                                    playerAttacking.isAttacking = True
+                                else:
+                                    toDisplayText = "Not In Range"
+                            elif button.name == "Build":
+                                toDisplayText = "Build clicked!"
+                                playerAttacking = sideMenu[1]
+                                buildMode = True
+                            elif button.name == "Endure":
+                                toDisplayText = "Endure clicked!"
+                            elif button.name == "Split":
+                                toDisplayText = "Split clicked!"
+                            elif button.name == "Reset":
+                                reset()
+                            closeSideMenu()
+                    for player in PlayerObjs:
+                        if player.rect.collidepoint(event.pos) and not player.hasMoved:  
+                            dragging_player = player
+                            original_x, original_y = player.x, player.y
+                            drag_offset_x = player.rect.x - event.pos[0]
+                            drag_offset_y = player.rect.y - event.pos[1]
+                            break
+                    closeSideMenu()
+                elif event.button == 3:  
+                    for player in PlayerObjs:
+                        if player.rect.collidepoint(event.pos) and not player.doneAttack:
+                            sideMenu[0], sideMenu[1] = True, player
+                        else:
+                            player.isAttacking = False
+
+            if event.type == pygame.MOUSEMOTION: 
+                if dragging_player:
+                    mouse_x, mouse_y = event.pos
+                    new_x = mouse_x + drag_offset_x
+                    new_y = mouse_y + drag_offset_y
+                    new_x = (new_x // wrdDiv) * wrdDiv
+                    new_y = (new_y // wrdDiv) * wrdDiv
+
+                    max_dist = dragging_player.moveDistance  # Movement distance limit
+                    if abs(new_x - original_x) > max_dist * wrdDiv:
+                        new_x = original_x + max_dist * wrdDiv if new_x > original_x else original_x - max_dist * wrdDiv
+                    if abs(new_y - original_y) > max_dist * wrdDiv:
+                        new_y = original_y + max_dist * wrdDiv if new_y > original_y else original_y - max_dist * wrdDiv
+
+                    dragging_player.rect.topleft = (new_x, new_y)
+
+                    for dx in range(-max_dist, max_dist + 1):
+                        for dy in range(-max_dist, max_dist + 1):
+                            if 0 <= (original_x // wrdDiv + dx) < hth and 0 <= (original_y // wrdDiv + dy) < wth:
+                                if abs(dx) <= max_dist and abs(dy) <= max_dist:
+                                    if (dx == 0 and dy == 0):
+                                        world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 2
+                                    else:
+                                        world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 3
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1 and dragging_player:
+                    if dragging_player:
+                        new_x = dragging_player.rect.x // wrdDiv
+                        new_y = dragging_player.rect.y // wrdDiv
+                        for i, player in enumerate(PlayerObjs):
+                            if player == dragging_player:
+                                PlayerObjs[i].x = new_x * wrdDiv
+                                PlayerObjs[i].y = new_y * wrdDiv
+                                PlayerObjs[i].hasMoved = True
+                                PlayerObjs[i].isAttacking = False
+                                PlayerObjs[i].inRange = False
+                                break
+                    updateBoard()
+                    dragging_player = None
 
     screen.blit(background, background_rect)
-
     displayBoard()
-
     pygame.display.update()
     clock.tick(60)
