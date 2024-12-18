@@ -7,14 +7,14 @@ import random
 pygame.init()
 
 width, height = 1000, 600
-wth, hth = (height // 100) * 2, (width // 100) * 2
+wth, hth = (width // 100) * 2, (height // 100) * 2
 wrdDiv = 50 # translate phyiscal location to world grid
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Final War')
 clock = pygame.time.Clock()
 
-world = [[0 for _ in range(wth)] for _ in range(hth)]  # 0: red enemy, 1: blue player, 2: white being dragged, 3: Magenta can be placed
-wObj = [[None for _ in range(wth)] for _ in range(hth)]
+world = [[0 for _ in range(hth)] for _ in range(wth)]  # 0: red enemy, 1: blue player, 2: white being dragged, 3: Magenta can be placed
+wObj = [[None for _ in range(hth)] for _ in range(wth)]
 worldScore = [0, 0]
 curTurn = 0
 toDisplayText = "The Game Has Begun"
@@ -88,18 +88,6 @@ class playObj:
             self.power = 100
             self.moveDistance = 2
 
-    def moveRandom(self):
-        ranStep = random.randint(1, 5)
-        if ranStep == 1 and self.x >= wrdDiv:
-            self.x -= wrdDiv
-        elif ranStep == 2 and self.x < width - wrdDiv:
-            self.x += wrdDiv
-        elif ranStep == 3 and self.y < height - wrdDiv:
-            self.y += wrdDiv
-        elif ranStep == 4 and self.y >= wrdDiv:
-            self.y -= wrdDiv
-        self.rect.topleft = (self.x, self.y)
-
 EnemyObjs = []
 class enemObj:
     def __init__(self, x, y):
@@ -135,28 +123,94 @@ class enemObj:
             self.y -= wrdDiv
         self.rect.topleft = (self.x, self.y)
 
-    def attackPlayer(self):
+    def chooseMove(self):
+        RN = random.randint(2, 5) # 5 means do nothing
 
-        directions = [
+        if self.canBeAttacked and random.random() < 0.75:
+            RN = 1
+        self.isDefending = False
+        enemy.canBeAttacked = False
+        if RN == 1:
+            eneAttack(self)
+        elif RN == 2:
+            self.isDefending = True
+        elif RN == 3:
+            enePush(self)
+        elif RN == 4:
+            eneBuild(self)
+        self.canBeAttacked = False
+
+def eneAttack(ene):
+    directions = [
             (-wrdDiv, 0), (wrdDiv, 0), (0, -wrdDiv), (0, wrdDiv), 
             (-wrdDiv, -wrdDiv), (wrdDiv, -wrdDiv), (-wrdDiv, wrdDiv), (wrdDiv, wrdDiv) ]
 
-        for dx, dy in directions:
-            adj_x = (self.x + dx) // wrdDiv
-            adj_y = (self.y + dy) // wrdDiv
+    for dx, dy in directions:
+        adj_x = (ene.x + dx) // wrdDiv
+        adj_y = (ene.y + dy) // wrdDiv
 
-            if 0 <= adj_x < hth and 0 <= adj_y < wth:
-                player = wObj[adj_x][adj_y]
-                if isinstance(player, playObj) and random.random() < 0.5:
-                    attackFunct(player, self, False)
-                    break
+        if 0 <= adj_x < wth and 0 <= adj_y < hth:
+            player = wObj[adj_x][adj_y]
+            if isinstance(player, playObj) and random.random() < 0.5:
+                attackFunct(player, ene, False)
+                break
 
-PlayerObjs.append(playObj(350, 200, "norm"))
+def enePush(ene):
+    dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
+    newDir = []
+    px, py = ene.rect.x, ene.rect.y 
+
+    for dx, dy in dir:
+        newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
+        if newX in range(0, wth - 1) and newY in range(0, hth - 1) and wObj[newX][newY]:
+            enemy = wObj[newX][newY]
+            if isinstance(enemy, enemObj) or isinstance(enemy, playObj):
+                newDir.append((newX, newY))
+
+    if newDir:
+        rand = random.choice(newDir)  # Choose a random tuple from newDir
+        target = wObj[rand[0]][rand[1]]
+
+        nX = (target.x - px) // 50 # 0 or -1 or 1 for directions
+        nY = (target.y - py) // 50
+        pushDist = random.choice([wrdDiv, wrdDiv * 2])
+
+        new_x = target.x + (nX * pushDist) # original plus the new position
+        new_y = target.y + (nY * pushDist)
+
+        if 0 <= new_x < width and 0 <= new_y < height:
+            toDisplayText = "Enemy Pushed Someone"
+            target.x = new_x
+            target.y = new_y
+            target.rect.topleft = (target.x, target.y)
+            updateBoard()
+
+def eneBuild(ene):
+    dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
+    newDir = []
+    px, py = ene.rect.x, ene.rect.y 
+
+    for dx, dy in dir:
+        newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
+        if newX in range(0, wth - 1) and newY in range(0, hth - 1) and not wObj[newX][newY]:
+            newDir.append((newX, newY)) 
+
+    if newDir:
+        rand = random.choice(newDir)  # Choose a random tuple from newDir
+
+        if wObj[rand[0]][rand[1]] is None: 
+            new_fence = Fences(rand[0] * wrdDiv, rand[1] * wrdDiv, False) 
+            fenceObjs.append(new_fence)
+            wObj[rand[0]][rand[1]] = new_fence
+            world[rand[0]][rand[1]] = 2
+    updateBoard()
+
+PlayerObjs.append(playObj(300, 200, "norm"))
 PlayerObjs.append(playObj(400, 300, "norm"))
-PlayerObjs.append(playObj(350, 400, "norm"))
-EnemyObjs.append(enemObj(600, 200))
+PlayerObjs.append(playObj(300, 400, "norm"))
+EnemyObjs.append(enemObj(650, 200))
 EnemyObjs.append(enemObj(550, 300))
-EnemyObjs.append(enemObj(600, 400))
+EnemyObjs.append(enemObj(650, 400))
 
 dragging_player = None
 drag_offset_x = 0
@@ -168,8 +222,8 @@ def updateBoard():
     
     worldScore[0], worldScore[1] = 0, 0
 
-    for i in range(hth):
-        for j in range(wth):
+    for i in range(wth):
+        for j in range(hth):
             world[i][j] = 0 
             wObj[i][j] = None
     
@@ -190,11 +244,11 @@ def updateBoard():
         worldScore[world[enemX][enemY]] += 1
         wObj[enemX][enemY] = enemy
 
-    fstThird = hth * Fraction(1, 5)
-    sndThird = (hth - fstThird) - 1
+    fstThird = wth * Fraction(1, 5)
+    sndThird = (wth - fstThird) - 1
 
-    for i in range(0, hth):
-        for j in range(0, wth):
+    for i in range(0, wth):
+        for j in range(0, hth):
             if i == fstThird or i == sndThird:
                 world[i][j] = 1
             else:
@@ -214,12 +268,14 @@ def attackFunct(pla, ene, who):
         if pla.isDefending:
             eAta = eAta // 4
             pAta = pAta // 3
+            pla.isDefending = False
         else:
             pAta = pAta // 4
     else: # player attacked
         if ene.isDefending:
             pAta = pAta // 4
             eAta = eAta // 3
+            ene.isDefending = False
         else:
             eAta = eAta // 4
     pla.curHP -= eAta
@@ -240,6 +296,7 @@ def attackFunct(pla, ene, who):
         battleText[2] = 1
         PlayerObjs.remove(pla)
     updateBoard()
+    ene.canBeAttacked = False
 
 
 def battleScreen():
@@ -288,13 +345,16 @@ def displayBoard():
     screen.blit(background, background_rect)
 
     # World Grid display
-    for i in range(0, hth):
-        for j in range(0, wth):
+    for i in range(0, wth):
+        for j in range(0, hth):
             color = "Blue" if world[i][j] == 0 else "Cyan" if world[i][j] == 1 else "Green" if world[i][j] == 2 else "Magenta"
             pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 45, 45))
 
     for fence in fenceObjs:
-        pygame.draw.rect(screen, "Yellow", fence.rect)
+        if fence.team:
+            pygame.draw.rect(screen, "Yellow", fence.rect)
+        else:
+            pygame.draw.rect(screen, "Purple", fence.rect)
 
 
 
@@ -308,7 +368,7 @@ def displayBoard():
             nm_rect = nm_surf.get_rect(center=enemy.rect.center)
             screen.blit(nm_surf, nm_rect)
 
-        enemy.canBeAttacked = False
+        
 
     # Player Display
     for player in PlayerObjs:
@@ -323,7 +383,7 @@ def displayBoard():
             adjacent_x = (player.x + dx) // wrdDiv
             adjacent_y = (player.y + dy) // wrdDiv
 
-            if 0 <= adjacent_x < hth and 0 <= adjacent_y < wth:
+            if 0 <= adjacent_x < wth and 0 <= adjacent_y < hth:
                 obj = wObj[adjacent_x][adjacent_y]
                 if isinstance(obj, enemObj):  
                     player.inRange = True
@@ -338,9 +398,8 @@ def displayBoard():
             nm_rect = nm_surf.get_rect(center=player.rect.center)
             screen.blit(nm_surf, nm_rect)
 
-
-    textArea = pygame.Surface((width // 2.5, height // 6))
-    textArea.fill('Grey')
+    textArea = pygame.Surface((width // 2.5, height // 6), pygame.SRCALPHA)
+    textArea.fill((169, 169, 169, 180))  
     screen.blit(textArea, (width - (width // 2.5), height - (height // 6)))
 
     scoreText = str("Turn  " + str(curTurn) + "     Score  " + str(worldScore[1]) + "  :  " + str(worldScore[0]))
@@ -350,7 +409,6 @@ def displayBoard():
     scoreText = str(toDisplayText)
     score_surf = font.render(scoreText, False, (254, 254, 254))
     screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 35))
-
 
     idx = 0
     moveUp = False
@@ -368,6 +426,7 @@ def displayBoard():
 
                 if buttonMoveUp:
                     button.rect.y -= 100
+
 
                 pygame.draw.rect(screen, "Grey", button.rect)
                 score_surf = font.render(button.name, False, (0, 0, 0))
@@ -392,20 +451,20 @@ def closeSideMenu():
 
 def reset():
     global PlayerObjs, EnemyObjs, fenceObjs, world, wObj, worldScore, curTurn, toDisplayText
-    world = [[0 for _ in range(wth)] for _ in range(hth)]
-    wObj = [[None for _ in range(wth)] for _ in range(hth)]
+    world = [[0 for _ in range(hth)] for _ in range(wth)]
+    wObj = [[None for _ in range(hth)] for _ in range(wth)]
     worldScore = [0, 0]
     curTurn = 0
     toDisplayText = "The Game Has Begun"
     PlayerObjs = []
     EnemyObjs = []
     fenceObjs = []
-    PlayerObjs.append(playObj(350, 200, "norm"))
+    PlayerObjs.append(playObj(300, 200, "norm"))
     PlayerObjs.append(playObj(400, 300, "norm"))
-    PlayerObjs.append(playObj(350, 400, "norm"))
-    EnemyObjs.append(enemObj(600, 200))
+    PlayerObjs.append(playObj(300, 400, "norm"))
+    EnemyObjs.append(enemObj(650, 200))
     EnemyObjs.append(enemObj(550, 300))
-    EnemyObjs.append(enemObj(600, 400))
+    EnemyObjs.append(enemObj(650, 400))
     updateBoard()
 
 # ------------------------------------------------------------------------------------------------------------
@@ -415,17 +474,74 @@ def reset():
 playerAttacking = None
 buildMode = False
 pushMode = False
+pullMode = False
 
 while True:
 
-    if pushMode and not showAttackScreen:
+    if pullMode and not showAttackScreen:
         dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
         newDir = []
         px, py = playerAttacking.rect.x, playerAttacking.rect.y 
 
         for dx, dy in dir:
             newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
-            if newX in range(0, hth - 1) and newY in range(0, wth - 1) and wObj[newX][newY]:
+            if newX in range(0, wth - 1) and newY in range(0, hth - 1) and wObj[newX][newY]:
+                pla = wObj[newX][newY]
+                if isinstance(pla, playObj):
+                    newDir.append((newX, newY))
+                    world[newX][newY] = 3
+
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        grid_x = (mouse_x // wrdDiv) * wrdDiv
+        grid_y = (mouse_y // wrdDiv) * wrdDiv
+
+        if not newDir:
+            toDisplayText = "Nobody can be pushes"
+            pullMode = False
+            playerAttacking = None
+            closeSideMenu()
+            updateBoard()
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                playerAttacking = None
+                pullMode = False 
+                closeSideMenu()
+                updateBoard()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    if wObj[grid_x // wrdDiv][grid_y // wrdDiv] and (grid_x // wrdDiv, grid_y // wrdDiv) in newDir:
+                        
+                        for enemy in PlayerObjs:
+                            if enemy.x == grid_x and enemy.y == grid_y:
+                                nX = (grid_x - px) // 50 # 0 or -1 or 1 for directions
+                                nY = (grid_y - py) // 50
+                                pushDist = random.choice([wrdDiv * 2, wrdDiv * 3]) # the pixel representation of 1 or 2 tiles
+                                new_x = grid_x - (nX * pushDist) # original plus the new position
+                                new_y = grid_y - (nY * pushDist)
+                                if 0 <= new_x < width and 0 <= new_y < height and not wObj[new_x // 50][new_y // 50]:
+                                    enemy.x = new_x
+                                    enemy.y = new_y
+                                    enemy.rect.topleft = (enemy.x, enemy.y)
+                                    playerAttacking.hasMoved, playerAttacking.doneAttack = True, True
+                                    updateBoard()
+                                else:
+                                    toDisplayText = ("Couldn't push " + str(pushDist // wrdDiv))
+                                break
+                    pullMode = False
+                    playerAttacking = None
+                    closeSideMenu()
+                    updateBoard()
+    elif pushMode and not showAttackScreen:
+        dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
+        newDir = []
+        px, py = playerAttacking.rect.x, playerAttacking.rect.y 
+
+        for dx, dy in dir:
+            newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
+            if newX in range(0, wth - 1) and newY in range(0, hth - 1) and wObj[newX][newY]:
                 enemy = wObj[newX][newY]
                 if isinstance(enemy, enemObj):
                     newDir.append((newX, newY))
@@ -453,18 +569,33 @@ while True:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     if wObj[grid_x // wrdDiv][grid_y // wrdDiv] and (grid_x // wrdDiv, grid_y // wrdDiv) in newDir:
-
+                        
                         for enemy in EnemyObjs:
-                            if enemy.rect.x == grid_x and enemy.rect.y == grid_y:
-                                enemy.rect.x += 50
-                                playerAttacking.hasMoved, playerAttacking.doneAttack = True, True
+                            if enemy.x == grid_x and enemy.y == grid_y:
+
+                                nX = (grid_x - px) // 50 # 0 or -1 or 1 for directions
+                                nY = (grid_y - py) // 50
+
+                                pushDist = random.choice([wrdDiv, wrdDiv * 2]) # the pixel representation of 1 or 2 tiles
+
+                                new_x = grid_x + (nX * pushDist) # original plus the new position
+                                new_y = grid_y + (nY * pushDist)
+
+                                if 0 <= new_x < width and 0 <= new_y < height and not wObj[new_x // 50][new_y // 50]:
+                                    enemy.x = new_x
+                                    enemy.y = new_y
+                                    enemy.rect.topleft = (enemy.x, enemy.y)
+                                    playerAttacking.hasMoved, playerAttacking.doneAttack = True, True
+                                    updateBoard()
+                                else:
+                                    toDisplayText = ("Couldn't push " + str(pushDist // wrdDiv))
+
                                 break
 
                     pushMode = False
                     playerAttacking = None
                     closeSideMenu()
                     updateBoard()
-
     elif buildMode and not showAttackScreen and not pushMode:
         dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
         newDir = []
@@ -472,7 +603,7 @@ while True:
 
         for dx, dy in dir:
             newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
-            if newX in range(0, hth) and newY in range(0, wth) and not wObj[newX][newY]:
+            if newX in range(0, wth) and newY in range(0, hth) and not wObj[newX][newY]:
                 newDir.append((newX, newY))
                 world[newX][newY] = 3 
         
@@ -501,7 +632,6 @@ while True:
                     playerAttacking = None
                     closeSideMenu()
                     updateBoard()
-
     elif showAttackScreen:
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
@@ -510,8 +640,8 @@ while True:
                 battleText[2] = 0
             if event.type == pygame.QUIT:
                 pygame.quit()
-                    
-    if not buildMode and not showAttackScreen and not pushMode:
+                
+    if not buildMode and not showAttackScreen and not pushMode: #-------------------------------------------------
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -519,7 +649,7 @@ while True:
                 sideMenu[0], sideMenu[1] = False, None
                 for enemy in EnemyObjs:
                     enemy.moveRandom()
-                    enemy.attackPlayer()
+                    enemy.chooseMove()
                     enemy.canBeAttacked = False
 
                 for player in PlayerObjs:
@@ -545,12 +675,16 @@ while True:
                                     playerAttacking.isAttacking = False
                                     playerAttacking.curHP -= enemy.power // 4
                                     playerAttacking = None
-
                                 break 
+                        if playerAttacking:
+                            playerAttacking.isAttacking = False
+                            playerAttacking = None
                     for button in buttonObjs:
                         if button.rect.collidepoint(event.pos) and button.isOn:
+                            if sideMenu[1]: sideMenu[1].isDefending = False
                             if button.name == "Attack":
                                 if sideMenu[1].inRange:
+                                    
                                     toDisplayText = "Attack clicked!"
                                     playerAttacking = sideMenu[1]
                                     playerAttacking.isAttacking = True
@@ -571,6 +705,10 @@ while True:
                                 toDisplayText = "Push pressed!"
                                 playerAttacking = sideMenu[1]
                                 pushMode = True
+                            elif button.name == "Pull":
+                                toDisplayText = "Pull pressed!"
+                                playerAttacking = sideMenu[1]
+                                pullMode = True
                             elif button.name == "Reset":
                                 reset()
                             closeSideMenu()
@@ -607,7 +745,7 @@ while True:
 
                     for dx in range(-max_dist, max_dist + 1):
                         for dy in range(-max_dist, max_dist + 1):
-                            if 0 <= (original_x // wrdDiv + dx) < hth and 0 <= (original_y // wrdDiv + dy) < wth:
+                            if 0 <= (original_x // wrdDiv + dx) < wth and 0 <= (original_y // wrdDiv + dy) < hth:
                                 if abs(dx) <= max_dist and abs(dy) <= max_dist:
                                     if (dx == 0 and dy == 0):
                                         world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 2
@@ -620,9 +758,10 @@ while True:
                         new_y = dragging_player.rect.y // wrdDiv
                         for i, player in enumerate(PlayerObjs):
                             if player == dragging_player:
+                                if PlayerObjs[i].x != new_x * wrdDiv and PlayerObjs[i].y != new_y * wrdDiv:
+                                    PlayerObjs[i].hasMoved = True
                                 PlayerObjs[i].x = new_x * wrdDiv
                                 PlayerObjs[i].y = new_y * wrdDiv
-                                PlayerObjs[i].hasMoved = True
                                 PlayerObjs[i].isAttacking = False
                                 PlayerObjs[i].inRange = False
                                 break
