@@ -1,6 +1,7 @@
 " Things to add: barriers, types, ranged attacks, enemy a.i."
 
 from collections import deque
+from fractions import Fraction
 import pygame  # type: ignore
 import random
 pygame.init()
@@ -41,9 +42,10 @@ class Buttons:
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
 
 buttonObjs.append(Buttons(0, 0, "Attack", False))
+buttonObjs.append(Buttons(0, 0, "Defend", False))
+buttonObjs.append(Buttons(0, 0, "Push", False))
+buttonObjs.append(Buttons(0, 0, "Pull", False))
 buttonObjs.append(Buttons(0, 0, "Build", False))
-buttonObjs.append(Buttons(0, 0, "Endure", False))
-buttonObjs.append(Buttons(0, 0, "Split", False))
 buttonObjs.append(Buttons(900, 550, "Reset", True)) # always appear
 
 fenceObjs = []
@@ -53,7 +55,7 @@ class Fences:
         self.y = y
         self.team = team
         self.HP = 100
-        self.surface = pygame.Surface((25, 25))
+        self.surface = pygame.Surface((45, 45))
         self.surface.fill('Yellow')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
 
@@ -72,6 +74,7 @@ class playObj:
         self.doneAttack = False
         self.inRange = False
         self.isAttacking = False
+        self.isDefending = False
         self.maxHP = 0
         self.curHP = 0
         self.power = 0
@@ -80,10 +83,10 @@ class playObj:
     
     def getStats(self, type):
         if type == "norm":
-            self.maxHP = 100
-            self.curHP = 100
-            self.power = 50
-            self.moveDistance = 3
+            self.maxHP = 150
+            self.curHP = 150
+            self.power = 100
+            self.moveDistance = 2
 
     def moveRandom(self):
         ranStep = random.randint(1, 5)
@@ -103,11 +106,13 @@ class enemObj:
         self.x = x
         self.y = y
         self.surface = pygame.Surface((25, 25))
-        self.surface.fill('Purple')
+        self.surface.fill((0, 141, 0))
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
         self.canBeAttacked = False
-        self.maxHP = 100
-        self.curHP = 100
+        self.isDefending = False
+        self.maxHP = 150
+        self.curHP = 150
+        self.power = 100
 
     def moveRandom(self):
         xx, yy = self.x // wrdDiv, self.y // wrdDiv
@@ -141,24 +146,17 @@ class enemObj:
             adj_y = (self.y + dy) // wrdDiv
 
             if 0 <= adj_x < hth and 0 <= adj_y < wth:
-                adjObj = wObj[adj_x][adj_y]
-                if isinstance(adjObj, playObj):
-                    global toDisplayText
-                    toDisplayText = str(f"Enemy at ({self.x},{self.y}) attacking player at ({adjObj.x},{adjObj.y})")
-                    adjObj.curHP -= 1
-
-                    if adjObj.curHP <= 0:
-                        PlayerObjs.remove(adjObj)
-                        updateBoard()
-                        break
+                player = wObj[adj_x][adj_y]
+                if isinstance(player, playObj) and random.random() < 0.5:
+                    attackFunct(player, self, False)
                     break
 
-PlayerObjs.append(playObj(400, 200, "norm"))
+PlayerObjs.append(playObj(350, 200, "norm"))
 PlayerObjs.append(playObj(400, 300, "norm"))
-PlayerObjs.append(playObj(400, 400, "norm"))
-EnemyObjs.append(enemObj(550, 200))
+PlayerObjs.append(playObj(350, 400, "norm"))
+EnemyObjs.append(enemObj(600, 200))
 EnemyObjs.append(enemObj(550, 300))
-EnemyObjs.append(enemObj(550, 400))
+EnemyObjs.append(enemObj(600, 400))
 
 dragging_player = None
 drag_offset_x = 0
@@ -168,8 +166,6 @@ original_y = 0
 
 def updateBoard():
     
-    q = deque()
-    visit = [[False for _ in range(wth)] for _ in range(hth)]
     worldScore[0], worldScore[1] = 0, 0
 
     for i in range(hth):
@@ -185,36 +181,100 @@ def updateBoard():
     for player in PlayerObjs:
         playX = player.rect.x // wrdDiv
         playY = player.rect.y // wrdDiv
-        q.append((playX, playY))
-        world[playX][playY] = 1
-        visit[playX][playY] = True
         worldScore[world[playX][playY]] += 1
         wObj[playX][playY] = player
 
     for enemy in EnemyObjs:
         enemX = enemy.rect.x // wrdDiv
         enemY = enemy.rect.y // wrdDiv
-        q.append((enemX, enemY))
-        world[enemX][enemY] = 0
-        visit[enemX][enemY] = True
         worldScore[world[enemX][enemY]] += 1
         wObj[enemX][enemY] = enemy
 
-    while q:
-        px, py = q.popleft()
-        color = world[px][py]
+    fstThird = hth * Fraction(1, 5)
+    sndThird = (hth - fstThird) - 1
 
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            nx, ny = px + dx, py + dy
-
-            if 0 <= nx < hth and 0 <= ny < wth and not visit[nx][ny]:
-                visit[nx][ny] = True
-                world[nx][ny] = color
-                q.append((nx, ny))
-                worldScore[color] += 1
+    for i in range(0, hth):
+        for j in range(0, wth):
+            if i == fstThird or i == sndThird:
+                world[i][j] = 1
+            else:
+                world[i][j] = 0
     
 
 updateBoard()
+
+
+battleText = ["Battle 0", "Battle 1", 0]
+showAttackScreen = False
+
+def attackFunct(pla, ene, who):
+    global showAttackScreen, battleText
+    pAta, eAta = pla.power, ene.power
+    if not who: # enemy attacked
+        if pla.isDefending:
+            eAta = eAta // 4
+            pAta = pAta // 3
+        else:
+            pAta = pAta // 4
+    else: # player attacked
+        if ene.isDefending:
+            pAta = pAta // 4
+            eAta = eAta // 3
+        else:
+            eAta = eAta // 4
+    pla.curHP -= eAta
+    ene.curHP -= pAta
+    battleText[0] = str("Enemy Lost  " + str(pAta) + "  :   (" + str(ene.curHP) + " / " + str(ene.maxHP) + ")")
+    battleText[1] = str("Player Lost  " + str(eAta) + "  :   (" + str(pla.curHP) + " / " + str(pla.maxHP) + ")")
+    showAttackScreen = True
+    global toDisplayText
+    toDisplayText = str("Attack Happened")
+    if ene.curHP <= 0 and pla.curHP <= 0:
+        battleText[2] = 3
+        PlayerObjs.remove(pla)
+        EnemyObjs.remove(ene)
+    elif ene.curHP <= 0:
+        EnemyObjs.remove(ene)
+        battleText[2] = 2
+    elif pla.curHP <= 0:
+        battleText[2] = 1
+        PlayerObjs.remove(pla)
+    updateBoard()
+
+
+def battleScreen():
+    screen.blit(background, background_rect)
+
+    pA_surf = font.render(str(battleText[0]), False, (254, 254, 254))
+    pA_rect = pA_surf.get_rect(center=(width // 2, height * Fraction(2, 5)))
+    screen.blit(pA_surf, pA_rect)
+
+    eA_surf = font.render(str(battleText[1]), False, (254, 254, 254))
+    eA_rect = eA_surf.get_rect(center=(width // 2, height * Fraction(3, 5)))
+    screen.blit(eA_surf, eA_rect)
+
+    p = pygame.Surface((100, 200))
+    p.fill('Orange')
+    p_rect = p.get_rect(center=(width * Fraction(1, 4), height // 2))
+    screen.blit(p, p_rect)
+
+    e = pygame.Surface((100, 200))
+    e.fill('Purple')
+    e_rect = e.get_rect(center=(width * Fraction(3, 4), height // 2))
+    screen.blit(e, e_rect)
+
+    if battleText[2] > 0:
+        deathNotice = ""
+        if battleText[2] == 1:
+            deathNotice = "Player Died"
+        elif battleText[2] == 2:
+            deathNotice = "Enemy Died"
+        elif battleText[2] == 3:
+            deathNotice = "Both Died"
+
+        eA_surf = font.render(deathNotice, False, (254, 254, 254))
+        eA_rect = eA_surf.get_rect(center=(width // 2, height * Fraction(4, 5)))
+        screen.blit(eA_surf, eA_rect)
 
 # ------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------
@@ -224,11 +284,14 @@ sideMenu = [False, None]
 buttonMoveUp = False
 
 def displayBoard():
+
+    screen.blit(background, background_rect)
+
     # World Grid display
     for i in range(0, hth):
         for j in range(0, wth):
-            color = "Red" if world[i][j] == 0 else "Blue" if world[i][j] == 1 else "White" if world[i][j] == 2 else "Magenta"
-            pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 35, 35))
+            color = "Blue" if world[i][j] == 0 else "Cyan" if world[i][j] == 1 else "Green" if world[i][j] == 2 else "Magenta"
+            pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, 45, 45))
 
     for fence in fenceObjs:
         pygame.draw.rect(screen, "Yellow", fence.rect)
@@ -300,14 +363,11 @@ def displayBoard():
                 button.isOn = True
                 idx += 1
 
-
                 if button.rect.y >= height:
                     moveUp = True
 
                 if buttonMoveUp:
                     button.rect.y -= 100
-
-                
 
                 pygame.draw.rect(screen, "Grey", button.rect)
                 score_surf = font.render(button.name, False, (0, 0, 0))
@@ -340,30 +400,72 @@ def reset():
     PlayerObjs = []
     EnemyObjs = []
     fenceObjs = []
-    PlayerObjs.append(playObj(400, 200, "norm"))
+    PlayerObjs.append(playObj(350, 200, "norm"))
     PlayerObjs.append(playObj(400, 300, "norm"))
-    PlayerObjs.append(playObj(400, 400, "norm"))
-    EnemyObjs.append(enemObj(550, 200))
+    PlayerObjs.append(playObj(350, 400, "norm"))
+    EnemyObjs.append(enemObj(600, 200))
     EnemyObjs.append(enemObj(550, 300))
-    EnemyObjs.append(enemObj(550, 400))
+    EnemyObjs.append(enemObj(600, 400))
     updateBoard()
 
-
-
-
-
 # ------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------
-
 
 playerAttacking = None
 buildMode = False
+pushMode = False
 
 while True:
 
-    # Fence Placement [Very Weird but no other way works]
-    if buildMode:
+    if pushMode and not showAttackScreen:
+        dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
+        newDir = []
+        px, py = playerAttacking.rect.x, playerAttacking.rect.y 
+
+        for dx, dy in dir:
+            newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
+            if newX in range(0, hth - 1) and newY in range(0, wth - 1) and wObj[newX][newY]:
+                enemy = wObj[newX][newY]
+                if isinstance(enemy, enemObj):
+                    newDir.append((newX, newY))
+                    world[newX][newY] = 3
+
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        grid_x = (mouse_x // wrdDiv) * wrdDiv
+        grid_y = (mouse_y // wrdDiv) * wrdDiv
+
+        if not newDir:
+            toDisplayText = "Nobody can be pushes"
+            pushMode = False
+            playerAttacking = None
+            closeSideMenu()
+            updateBoard()
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                playerAttacking = None
+                pushMode = False 
+                closeSideMenu()
+                updateBoard()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    if wObj[grid_x // wrdDiv][grid_y // wrdDiv] and (grid_x // wrdDiv, grid_y // wrdDiv) in newDir:
+
+                        for enemy in EnemyObjs:
+                            if enemy.rect.x == grid_x and enemy.rect.y == grid_y:
+                                enemy.rect.x += 50
+                                playerAttacking.hasMoved, playerAttacking.doneAttack = True, True
+                                break
+
+                    pushMode = False
+                    playerAttacking = None
+                    closeSideMenu()
+                    updateBoard()
+
+    elif buildMode and not showAttackScreen and not pushMode:
         dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
         newDir = []
         px, py = playerAttacking.rect.x, playerAttacking.rect.y 
@@ -400,8 +502,16 @@ while True:
                     closeSideMenu()
                     updateBoard()
 
+    elif showAttackScreen:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                showAttackScreen = False
+                battleText[0], battleText[1] = "", ""
+                battleText[2] = 0
+            if event.type == pygame.QUIT:
+                pygame.quit()
                     
-    if not buildMode:
+    if not buildMode and not showAttackScreen and not pushMode:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -429,17 +539,13 @@ while True:
                         for enemy in EnemyObjs:
                             if enemy.rect.collidepoint(event.pos) and playerAttacking:  
                                 if abs(playerAttacking.x - enemy.x) <= wrdDiv and abs(playerAttacking.y - enemy.y) <= wrdDiv:
-                                    toDisplayText = "Enemy Was Attacked"
-                                    enemy.curHP -= playerAttacking.power
+                                    attackFunct(playerAttacking, enemy, True)
                                     playerAttacking.doneAttack = True 
                                     playerAttacking.hasMoved = True
                                     playerAttacking.isAttacking = False
+                                    playerAttacking.curHP -= enemy.power // 4
                                     playerAttacking = None
 
-                                    if enemy.curHP <= 0:
-                                        EnemyObjs.remove(enemy)
-                                        updateBoard()
-                                        break
                                 break 
                     for button in buttonObjs:
                         if button.rect.collidepoint(event.pos) and button.isOn:
@@ -454,10 +560,17 @@ while True:
                                 toDisplayText = "Build clicked!"
                                 playerAttacking = sideMenu[1]
                                 buildMode = True
-                            elif button.name == "Endure":
-                                toDisplayText = "Endure clicked!"
-                            elif button.name == "Split":
-                                toDisplayText = "Split clicked!"
+                            elif button.name == "Defend":
+                                toDisplayText = "Player Defending!"
+                                sideMenu[1].isDefending = True
+                                sideMenu[1].hasMoved = True
+                                sideMenu[1].doneAttack = True
+                                sideMenu[1].isAttacking = False
+                                sideMenu[1].inRange = False
+                            elif button.name == "Push":
+                                toDisplayText = "Push pressed!"
+                                playerAttacking = sideMenu[1]
+                                pushMode = True
                             elif button.name == "Reset":
                                 reset()
                             closeSideMenu()
@@ -516,7 +629,9 @@ while True:
                     updateBoard()
                     dragging_player = None
 
-    screen.blit(background, background_rect)
-    displayBoard()
+    if not showAttackScreen:
+        displayBoard()
+    else:
+        battleScreen()
     pygame.display.update()
     clock.tick(60)
