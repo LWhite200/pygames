@@ -1,5 +1,6 @@
-" Things to add: barriers, types, ranged attacks, enemy a.i."
-" Make it so that fences can be broken over time, enemy step on theirs "
+" Better Movement "
+" Enemy A.I. "
+" Destroying Fences "
 
 from collections import deque
 from fractions import Fraction
@@ -56,7 +57,7 @@ class Fences:
         self.y = y
         self.team = team
         self.HP = 100
-        self.surface = pygame.Surface((45, 45))
+        self.surface = pygame.Surface((35, 35))
         self.surface.fill('Yellow')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
 
@@ -92,7 +93,7 @@ class playObj:
             self.maxHP = 1500
             self.curHP = 1500
             self.power = 1000
-            self.moveDistance = 20
+            self.moveDistance = 2
 
 EnemyObjs = []
 class enemObj:
@@ -246,15 +247,17 @@ EnemyObjs.append(enemObj(550, 300))
 EnemyObjs.append(enemObj(650, 400))
 
 
-dragging_player = None
-drag_offset_x = 0
-drag_offset_y = 0
-original_x = 0
-original_y = 0
+
 
 def updateBoard():
     
+    global nPG, nEG
+
     worldScore[0], worldScore[1] = 0, 0
+    nPG, nEG = 0, 0
+
+    fstThird = wth * Fraction(1, 5)
+    sndThird = (wth - fstThird) - 1
 
     for i in range(wth):
         for j in range(hth):
@@ -271,15 +274,18 @@ def updateBoard():
         playY = player.rect.y // wrdDiv
         worldScore[world[playX][playY]] += 1
         wObj[playX][playY] = player
+        if playX > sndThird:
+            nPG += 1
 
     for enemy in EnemyObjs:
         enemX = enemy.rect.x // wrdDiv
         enemY = enemy.rect.y // wrdDiv
         worldScore[world[enemX][enemY]] += 1
         wObj[enemX][enemY] = enemy
+        if enemX < fstThird:
+            nEG += 1
 
-    fstThird = wth * Fraction(1, 5)
-    sndThird = (wth - fstThird) - 1
+    
 
     for i in range(0, wth):
         for j in range(0, hth):
@@ -469,10 +475,10 @@ def displayBoard():
             screen.blit(nm_surf, nm_rect)
 
     textArea = pygame.Surface((width // 2.5, height // 6), pygame.SRCALPHA)
-    textArea.fill((169, 169, 169, 180))  
+    textArea.fill((169, 169, 169, 120))  
     screen.blit(textArea, (width - (width // 2.5), height - (height // 6)))
 
-    scoreText = str("Turn  " + str(curTurn) + "     Score  " + str(worldScore[1]) + "  :  " + str(worldScore[0]))
+    scoreText = str("Turn  " + str(curTurn) + " / " + str(numTurns))
     score_surf = font.render(scoreText, False, (254, 254, 254))
     screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 5))
 
@@ -520,8 +526,12 @@ def closeSideMenu():
 
 def gameOverScreen(pWin):
     screen.blit(background, background_rect)
+    if endedTie:
+        eA_surf = font.render("Ended In A Tie", False, (254, 254, 254))
+        eA_rect = eA_surf.get_rect(center=(width // 2, height // 2))
+        screen.blit(eA_surf, eA_rect)
 
-    if pWin:
+    elif pWin:
         p = pygame.Surface((100, 200))
         p.fill('Orange')
         p_rect = p.get_rect(center=(width // 2, height // 2))
@@ -543,7 +553,7 @@ def gameOverScreen(pWin):
 
 
 def reset():
-    global PlayerObjs, EnemyObjs, fenceObjs, world, wObj, worldScore, curTurn, toDisplayText, gameDone, showAttackScreen
+    global PlayerObjs, EnemyObjs, fenceObjs, world, wObj, worldScore, curTurn, toDisplayText, gameDone, showAttackScreen, numTurns
     gameDone, showAttackScreen = False, False
     world = [[0 for _ in range(hth)] for _ in range(wth)]
     wObj = [[None for _ in range(hth)] for _ in range(wth)]
@@ -553,12 +563,19 @@ def reset():
     PlayerObjs = []
     EnemyObjs = []
     fenceObjs = []
+
+    PlayerObjs.append(playObj(300, 100, "norm"))
     PlayerObjs.append(playObj(300, 200, "norm"))
     PlayerObjs.append(playObj(400, 300, "norm"))
     PlayerObjs.append(playObj(300, 400, "norm"))
+    PlayerObjs.append(playObj(300, 500, "norm"))
+
+    EnemyObjs.append(enemObj(650, 100))
     EnemyObjs.append(enemObj(650, 200))
     EnemyObjs.append(enemObj(550, 300))
     EnemyObjs.append(enemObj(650, 400))
+    EnemyObjs.append(enemObj(650, 500))
+    numTurns = (len(PlayerObjs) + len(EnemyObjs)) * 2
     updateBoard()
 
 # ------------------------------------------------------------------------------------------------------------
@@ -570,11 +587,28 @@ buildMode = False
 pushMode = False
 pullMode = False
 gameDone = False
+endedTie = False
+
+numTurns = (len(PlayerObjs) + len(EnemyObjs)) * 2
+
+nPG = 0
+nEG = 0
+
+draPla = None
+dOX = 0
+dOY= 0
+oriX = 0
+oriY = 0
 
 
 while True:
 
-    if not PlayerObjs or not EnemyObjs and not showAttackScreen:
+    if (not PlayerObjs or not EnemyObjs) and not showAttackScreen or nPG >= len(PlayerObjs) or nEG >= len(EnemyObjs) or curTurn > numTurns:
+        if curTurn > numTurns:
+            endedTie = True
+        else:
+            endedTie = False
+
         toDisplayText = "Game Over"
         gameDone = True
 
@@ -584,7 +618,6 @@ while True:
             if event.type == pygame.QUIT:
                 pygame.quit()
 
-        
 
     if pullMode and not showAttackScreen and not gameDone:
         dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
@@ -750,10 +783,6 @@ while True:
                 battleText[2] = 0
             if event.type == pygame.QUIT:
                 pygame.quit()
-                
-
-
-                
     if not buildMode and not showAttackScreen and not pushMode and not gameDone: #-------------------------------------------------
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -826,11 +855,11 @@ while True:
                                 reset()
                             closeSideMenu()
                     for player in PlayerObjs:
-                        if player.rect.collidepoint(event.pos) and not player.hasMoved:  
-                            dragging_player = player
-                            original_x, original_y = player.x, player.y
-                            drag_offset_x = player.rect.x - event.pos[0]
-                            drag_offset_y = player.rect.y - event.pos[1]
+                        if player.rect.collidepoint(event.pos) and not player.hasMoved and player != draPla:
+                            draPla = player
+                            oriX, oriY = player.x, player.y
+                            dOX = player.rect.x - event.pos[0]
+                            dOY= player.rect.y - event.pos[1]
                             break
                     closeSideMenu()
                 elif event.button == 3:  
@@ -840,46 +869,70 @@ while True:
                         else:
                             player.isAttacking = False
 
+
+            # -------------------------------------------------------------------------
+            # Dragging all done here
+
+            # a true fence is able to be stepped on
+            
+
+            # -----------------------------------------------
+
             if event.type == pygame.MOUSEMOTION: 
-                if dragging_player:
+                if draPla:
                     mouse_x, mouse_y = event.pos
-                    new_x = mouse_x + drag_offset_x
-                    new_y = mouse_y + drag_offset_y
+                    new_x = mouse_x + dOX
+                    new_y = mouse_y + dOY
                     new_x = (new_x // wrdDiv) * wrdDiv
                     new_y = (new_y // wrdDiv) * wrdDiv
 
-                    max_dist = dragging_player.moveDistance  # Movement distance limit
-                    if abs(new_x - original_x) > max_dist * wrdDiv:
-                        new_x = original_x + max_dist * wrdDiv if new_x > original_x else original_x - max_dist * wrdDiv
-                    if abs(new_y - original_y) > max_dist * wrdDiv:
-                        new_y = original_y + max_dist * wrdDiv if new_y > original_y else original_y - max_dist * wrdDiv
+                    max_dist = draPla.moveDistance  # Movement distance limit
+                    if abs(new_x - oriX) > max_dist * wrdDiv:
+                        new_x = oriX + max_dist * wrdDiv if new_x > oriX else oriX - max_dist * wrdDiv
+                    if abs(new_y - oriY) > max_dist * wrdDiv:
+                        new_y = oriY + max_dist * wrdDiv if new_y > oriY else oriY - max_dist * wrdDiv
 
-                    dragging_player.rect.topleft = (new_x, new_y)
+                    draPla.rect.topleft = (new_x, new_y)
 
                     for dx in range(-max_dist, max_dist + 1):
                         for dy in range(-max_dist, max_dist + 1):
-                            if 0 <= (original_x // wrdDiv + dx) < wth and 0 <= (original_y // wrdDiv + dy) < hth:
+                            if 0 <= (oriX // wrdDiv + dx) < wth and 0 <= (oriY // wrdDiv + dy) < hth:
                                 if abs(dx) <= max_dist and abs(dy) <= max_dist:
-                                    if (dx == 0 and dy == 0):
-                                        world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 2
-                                    else:
-                                        world[(original_x // wrdDiv) + dx][(original_y // wrdDiv) + dy] = 3
+
+                                    goodSpot = True
+                                    if wObj[(oriX // wrdDiv) + dx][(oriY // wrdDiv) + dy]:
+                                        goodSpot = False
+                                    if (dx == 0 and dy == 0) and goodSpot:
+                                        world[(oriX // wrdDiv) + dx][(oriY // wrdDiv) + dy] = 2
+                                    elif goodSpot:
+                                        world[(oriX // wrdDiv) + dx][(oriY // wrdDiv) + dy] = 3
+
+
             if event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1 and dragging_player:
-                    if dragging_player:
-                        new_x = dragging_player.rect.x // wrdDiv
-                        new_y = dragging_player.rect.y // wrdDiv
-                        for i, player in enumerate(PlayerObjs):
-                            if player == dragging_player:
-                                if PlayerObjs[i].x != new_x * wrdDiv and PlayerObjs[i].y != new_y * wrdDiv:
-                                    PlayerObjs[i].hasMoved = True
-                                PlayerObjs[i].x = new_x * wrdDiv
-                                PlayerObjs[i].y = new_y * wrdDiv
-                                PlayerObjs[i].isAttacking = False
-                                PlayerObjs[i].inRange = False
-                                break
-                    updateBoard()
-                    dragging_player = None
+                if event.button == 1 and draPla:
+                    if draPla:
+                        new_x = draPla.rect.x // wrdDiv
+                        new_y = draPla.rect.y // wrdDiv
+
+                        goodSpot = True
+                        if wObj[new_x][new_y]:
+                            goodSpot = False
+
+                        if (draPla.x != new_x * wrdDiv or draPla.y != new_y * wrdDiv) and goodSpot:
+                            draPla.hasMoved = True
+                            draPla.x = new_x * wrdDiv
+                            draPla.y = new_y * wrdDiv
+                            draPla.isAttacking = False
+                            draPla.inRange = False
+                        else:
+                            draPla.x = oriX
+                            draPla.y = oriY
+                            draPla.rect.x = oriX
+                            draPla.rect.y = oriY
+                        updateBoard()
+                        draPla = None
+
+                    
 
     if not showAttackScreen and not gameDone:
         displayBoard()
