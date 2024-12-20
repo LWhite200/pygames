@@ -1,6 +1,8 @@
-" Better Movement "
-" Enemy A.I. "
+" Enemy A.I. - attack when player is rushing - improved movement like player - rush when low numbers"
 " Destroying Fences "
+
+" Bug I think to due with restarting idk" "Probably when enemy wins idk"
+" buttons not moving up "
 
 from collections import deque
 from fractions import Fraction
@@ -113,38 +115,43 @@ class enemObj:
         xx, yy = self.x // wrdDiv, self.y // wrdDiv
         decrease = False
 
-        dir = [(-1, 0), (1, 0), (0, 1), (0, -1)]
+        dir = [(-1, 0), (0, 1), (0, -1), (1, 0)]
         
-        while True:
-            ranStep = random.randint(1, 5)
+        attempts = 0
+        while attempts < 10:
+            attempts += 1
+            ranStep = random.randint(1, 4) if not self.canBeAttacked else random.randint(1, 5)
+            
             if self.canBeAttacked and random.random() < 0.95:
                 decrease = True
                 ranStep = 5
 
-            if ranStep == 5: # decrease the likely hood it will not move
+            if ranStep == 5:
                 if decrease:
                     break
                 decrease = True
-
             else:
-                dx, dy = dir[ranStep - 1]
+                if random.random() < 0.75:
+                    dx, dy = dir[0]  
+                else:  
+                    dx, dy = random.choice(dir[1:])
+
                 new_x, new_y = xx + dx, yy + dy
 
                 if 0 <= new_x < width // wrdDiv and 0 <= new_y < height // wrdDiv:
                     if wObj[new_x][new_y]:
-                        obj = wObj[new_x][new_y]
-                        if isinstance(obj, Fences):
-                            if obj.team: # false means it is a enemy
-                                continue
-                        else:
-                            continue
+                        continue
 
+                    if xx != new_x or yy != new_y:
+                        self.isDefending = False
                     wObj[xx][yy] = None
                     wObj[new_x][new_y] = self
                     self.x, self.y = new_x * wrdDiv, new_y * wrdDiv
                     break
 
+        # Update the enemy's position on screen
         self.rect.topleft = (self.x, self.y)
+
 
     def chooseMove(self):
         RN = random.randint(2, 5) # 5 means do nothing
@@ -239,12 +246,17 @@ def eneBuild(ene):
             world[rand[0]][rand[1]] = 2
     updateBoard()
 
+PlayerObjs.append(playObj(300, 100, "norm"))
 PlayerObjs.append(playObj(300, 200, "norm"))
-PlayerObjs.append(playObj(400, 300, "God"))
+PlayerObjs.append(playObj(400, 300, "norm"))
 PlayerObjs.append(playObj(300, 400, "norm"))
+PlayerObjs.append(playObj(300, 500, "norm"))
+
+EnemyObjs.append(enemObj(650, 100))
 EnemyObjs.append(enemObj(650, 200))
 EnemyObjs.append(enemObj(550, 300))
 EnemyObjs.append(enemObj(650, 400))
+EnemyObjs.append(enemObj(650, 500))
 
 
 
@@ -383,30 +395,7 @@ def battleScreen():
 
         eA_surf = font.render(deathNotice, False, (254, 254, 254))
         eA_rect = eA_surf.get_rect(center=(width // 2, height * Fraction(4, 5)))
-        screen.blit(eA_surf, eA_rect)
-
-def gameOverScreen(pWin):
-    screen.blit(background, background_rect)
-
-    if pWin:
-        p = pygame.Surface((100, 200))
-        p.fill('Orange')
-        p_rect = p.get_rect(center=(width // 2, height // 2))
-        screen.blit(p, p_rect)
-
-        eA_surf = font.render("You Win", False, (254, 254, 254))
-        eA_rect = eA_surf.get_rect(center=(width // 2, height * Fraction(4, 5)))
-        screen.blit(eA_surf, eA_rect)
-    else:
-        e = pygame.Surface((100, 200))
-        e.fill('Purple')
-        e_rect = e.get_rect(center=(width // 2, height // 2))
-        screen.blit(e, e_rect)
-
-        eA_surf = font.render("You Lost", False, (254, 254, 254))
-        eA_rect = eA_surf.get_rect(center=(width // 2, height * Fraction(4, 5)))
-        screen.blit(eA_surf, eA_rect)
-    
+        screen.blit(eA_surf, eA_rect)    
 
 # ------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------
@@ -524,14 +513,15 @@ def closeSideMenu():
             if not button.onForever:
                 button.isOn = False
 
-def gameOverScreen(pWin):
+def gameOverScreen():
+    global endWho
     screen.blit(background, background_rect)
-    if endedTie:
+    if endWho == 3:
         eA_surf = font.render("Ended In A Tie", False, (254, 254, 254))
         eA_rect = eA_surf.get_rect(center=(width // 2, height // 2))
         screen.blit(eA_surf, eA_rect)
 
-    elif pWin:
+    elif endWho == 1:
         p = pygame.Surface((100, 200))
         p.fill('Orange')
         p_rect = p.get_rect(center=(width // 2, height // 2))
@@ -540,7 +530,7 @@ def gameOverScreen(pWin):
         eA_surf = font.render("You Win", False, (254, 254, 254))
         eA_rect = eA_surf.get_rect(center=(width // 2, height * Fraction(4, 5)))
         screen.blit(eA_surf, eA_rect)
-    else:
+    elif endWho == 2:
         e = pygame.Surface((100, 200))
         e.fill('Purple')
         e_rect = e.get_rect(center=(width // 2, height // 2))
@@ -553,7 +543,8 @@ def gameOverScreen(pWin):
 
 
 def reset():
-    global PlayerObjs, EnemyObjs, fenceObjs, world, wObj, worldScore, curTurn, toDisplayText, gameDone, showAttackScreen, numTurns
+    global PlayerObjs, EnemyObjs, fenceObjs, world, wObj, worldScore, curTurn, toDisplayText, gameDone, showAttackScreen, numTurns, endWho
+    endWho = 0
     gameDone, showAttackScreen = False, False
     world = [[0 for _ in range(hth)] for _ in range(wth)]
     wObj = [[None for _ in range(hth)] for _ in range(wth)]
@@ -563,6 +554,7 @@ def reset():
     PlayerObjs = []
     EnemyObjs = []
     fenceObjs = []
+
 
     PlayerObjs.append(playObj(300, 100, "norm"))
     PlayerObjs.append(playObj(300, 200, "norm"))
@@ -575,6 +567,7 @@ def reset():
     EnemyObjs.append(enemObj(550, 300))
     EnemyObjs.append(enemObj(650, 400))
     EnemyObjs.append(enemObj(650, 500))
+
     numTurns = (len(PlayerObjs) + len(EnemyObjs)) * 2
     updateBoard()
 
@@ -582,12 +575,12 @@ def reset():
 # ------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------
 
-playerAttacking = None
+playerAttacking = None 
 buildMode = False
 pushMode = False
 pullMode = False
 gameDone = False
-endedTie = False
+endWho = 0 # [1 = player, 2 = enemy, 3 = tie]
 
 numTurns = (len(PlayerObjs) + len(EnemyObjs)) * 2
 
@@ -602,18 +595,23 @@ oriY = 0
 
 
 while True:
-
-    if (not PlayerObjs or not EnemyObjs) and not showAttackScreen or nPG >= len(PlayerObjs) or nEG >= len(EnemyObjs) or curTurn > numTurns:
+    if (not PlayerObjs or not EnemyObjs or nPG >= len(PlayerObjs) or nEG >= len(EnemyObjs) or curTurn > numTurns) and not showAttackScreen:
         if curTurn > numTurns:
-            endedTie = True
-        else:
-            endedTie = False
+            endWho = 3
+        elif not PlayerObjs:
+            endWho = 2
+        elif nEG >= len(EnemyObjs):
+            endWho = 2
+        elif not EnemyObjs: # or 
+            endWho = 1
+        elif nPG >= len(PlayerObjs):
+            endWho = 1
 
         toDisplayText = "Game Over"
         gameDone = True
 
         for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:  # 
                 reset()
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -885,27 +883,32 @@ while True:
                     new_y = mouse_y + dOY
                     new_x = (new_x // wrdDiv) * wrdDiv
                     new_y = (new_y // wrdDiv) * wrdDiv
-
                     max_dist = draPla.moveDistance  # Movement distance limit
                     if abs(new_x - oriX) > max_dist * wrdDiv:
                         new_x = oriX + max_dist * wrdDiv if new_x > oriX else oriX - max_dist * wrdDiv
                     if abs(new_y - oriY) > max_dist * wrdDiv:
                         new_y = oriY + max_dist * wrdDiv if new_y > oriY else oriY - max_dist * wrdDiv
-
                     draPla.rect.topleft = (new_x, new_y)
 
-                    for dx in range(-max_dist, max_dist + 1):
-                        for dy in range(-max_dist, max_dist + 1):
-                            if 0 <= (oriX // wrdDiv + dx) < wth and 0 <= (oriY // wrdDiv + dy) < hth:
-                                if abs(dx) <= max_dist and abs(dy) <= max_dist:
+                    q = deque()
+                    visit = set()
+                    dir = [(0, 1), (1, 0), (0, -1), (-1,0), (-1, -1), (-1, 1), (1, -1), (1,1)]
+                    dirTwo = [(-1, -1), (-1, 1), (1, -1), (1,1)] # ignore for now
+                    q = deque([(oriX // wrdDiv, oriY // wrdDiv)])
+                    visit = set([(oriX // wrdDiv, oriY // wrdDiv)])
+                    count = 0
+                    while q and count < max_dist:
+                        count += 1
 
-                                    goodSpot = True
-                                    if wObj[(oriX // wrdDiv) + dx][(oriY // wrdDiv) + dy]:
-                                        goodSpot = False
-                                    if (dx == 0 and dy == 0) and goodSpot:
-                                        world[(oriX // wrdDiv) + dx][(oriY // wrdDiv) + dy] = 2
-                                    elif goodSpot:
-                                        world[(oriX // wrdDiv) + dx][(oriY // wrdDiv) + dy] = 3
+                        for _ in range(len(q)):
+                            x, y = q.popleft()
+
+                            for dx, dy in dir:
+                                nx, ny = x + dx, y + dy
+                                if 0 <= nx < wth and 0 <= ny < hth and not wObj[nx][ny] and (nx, ny) not in visit:
+                                    q.append((nx, ny))
+                                    visit.add((nx, ny))
+                                    world[nx][ny] = 3
 
 
             if event.type == pygame.MOUSEBUTTONUP:
@@ -918,7 +921,7 @@ while True:
                         if wObj[new_x][new_y]:
                             goodSpot = False
 
-                        if (draPla.x != new_x * wrdDiv or draPla.y != new_y * wrdDiv) and goodSpot:
+                        if (draPla.x != new_x * wrdDiv or draPla.y != new_y * wrdDiv) and goodSpot and world[new_x][new_y] == 3:
                             draPla.hasMoved = True
                             draPla.x = new_x * wrdDiv
                             draPla.y = new_y * wrdDiv
@@ -931,17 +934,11 @@ while True:
                             draPla.rect.y = oriY
                         updateBoard()
                         draPla = None
-
-                    
-
     if not showAttackScreen and not gameDone:
         displayBoard()
     elif showAttackScreen:
         battleScreen()
     else:
-        if PlayerObjs:
-            gameOverScreen(True)
-        else:
-            gameOverScreen(False)
+        gameOverScreen()
     pygame.display.update()
     clock.tick(60)
