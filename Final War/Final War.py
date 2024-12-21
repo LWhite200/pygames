@@ -1,7 +1,5 @@
-" Enemy A.I. - attack when player is rushing - improved movement like player - rush when low numbers"
 " Destroying Fences "
 
-" Bug I think to due with restarting idk" "Probably when enemy wins idk"
 " buttons not moving up "
 
 from collections import deque
@@ -50,6 +48,7 @@ buttonObjs.append(Buttons(0, 0, "Defend", False))
 buttonObjs.append(Buttons(0, 0, "Push", False))
 buttonObjs.append(Buttons(0, 0, "Pull", False))
 buttonObjs.append(Buttons(0, 0, "Build", False))
+buttonObjs.append(Buttons(0, 0, "Fix Wall", False))
 buttonObjs.append(Buttons(900, 550, "Reset", True)) # always appear
 
 fenceObjs = []
@@ -58,7 +57,7 @@ class Fences:
         self.x = x
         self.y = y
         self.team = team
-        self.HP = 100
+        self.HP = 151
         self.surface = pygame.Surface((35, 35))
         self.surface.fill('Yellow')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
@@ -235,6 +234,18 @@ def eneBuild(ene):
         newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
         if newX in range(0, wth - 1) and newY in range(0, hth - 1) and not wObj[newX][newY]:
             newDir.append((newX, newY)) 
+        elif  newX in range(0, wth - 1) and newY in range(0, hth - 1) and wObj[newX][newY]:
+            
+            # Why does this crash
+            obj = wObj[newX][newY]
+            if isinstance(obj, Fences):
+                if obj.team and random.random >= 0.88: # false means it is a enemy
+                    obj.HP -= ene.power
+                    if obj.HP <= 0:
+                        fenceObjs.remove(obj)
+                elif random.random >= 0.75:
+                    fenceObjs.remove(obj)
+
 
     if newDir:
         rand = random.choice(newDir)  # Choose a random tuple from newDir
@@ -245,21 +256,6 @@ def eneBuild(ene):
             wObj[rand[0]][rand[1]] = new_fence
             world[rand[0]][rand[1]] = 2
     updateBoard()
-
-PlayerObjs.append(playObj(300, 100, "norm"))
-PlayerObjs.append(playObj(300, 200, "norm"))
-PlayerObjs.append(playObj(400, 300, "norm"))
-PlayerObjs.append(playObj(300, 400, "norm"))
-PlayerObjs.append(playObj(300, 500, "norm"))
-
-EnemyObjs.append(enemObj(650, 100))
-EnemyObjs.append(enemObj(650, 200))
-EnemyObjs.append(enemObj(550, 300))
-EnemyObjs.append(enemObj(650, 400))
-EnemyObjs.append(enemObj(650, 500))
-
-
-
 
 def updateBoard():
     
@@ -307,7 +303,6 @@ def updateBoard():
                 world[i][j] = 0
     
 
-updateBoard()
 
 
 battleText = ["Battle 0", "Battle 1", 0]
@@ -464,7 +459,7 @@ def displayBoard():
             screen.blit(nm_surf, nm_rect)
 
     textArea = pygame.Surface((width // 2.5, height // 6), pygame.SRCALPHA)
-    textArea.fill((169, 169, 169, 120))  
+    textArea.fill((169, 169, 169, 80))  
     screen.blit(textArea, (width - (width // 2.5), height - (height // 6)))
 
     scoreText = str("Turn  " + str(curTurn) + " / " + str(numTurns))
@@ -490,7 +485,7 @@ def displayBoard():
                     moveUp = True
 
                 if buttonMoveUp:
-                    button.rect.y -= 100
+                    button.rect.y -= 150
 
 
                 pygame.draw.rect(screen, "Grey", button.rect)
@@ -556,17 +551,17 @@ def reset():
     fenceObjs = []
 
 
-    PlayerObjs.append(playObj(300, 100, "norm"))
+    PlayerObjs.append(playObj(250, 100, "norm"))
     PlayerObjs.append(playObj(300, 200, "norm"))
     PlayerObjs.append(playObj(400, 300, "norm"))
     PlayerObjs.append(playObj(300, 400, "norm"))
-    PlayerObjs.append(playObj(300, 500, "norm"))
+    PlayerObjs.append(playObj(250, 500, "norm"))
 
-    EnemyObjs.append(enemObj(650, 100))
+    EnemyObjs.append(enemObj(700, 100))
     EnemyObjs.append(enemObj(650, 200))
     EnemyObjs.append(enemObj(550, 300))
     EnemyObjs.append(enemObj(650, 400))
-    EnemyObjs.append(enemObj(650, 500))
+    EnemyObjs.append(enemObj(700, 500))
 
     numTurns = (len(PlayerObjs) + len(EnemyObjs)) * 2
     updateBoard()
@@ -580,6 +575,7 @@ buildMode = False
 pushMode = False
 pullMode = False
 gameDone = False
+FixWall = False
 endWho = 0 # [1 = player, 2 = enemy, 3 = tie]
 
 numTurns = (len(PlayerObjs) + len(EnemyObjs)) * 2
@@ -593,18 +589,21 @@ dOY= 0
 oriX = 0
 oriY = 0
 
+reset()
+updateBoard()
+
 
 while True:
-    if (not PlayerObjs or not EnemyObjs or nPG >= len(PlayerObjs) or nEG >= len(EnemyObjs) or curTurn > numTurns) and not showAttackScreen:
+    if (not PlayerObjs or not EnemyObjs or nPG >= len(EnemyObjs) or nEG >= len(PlayerObjs) or curTurn > numTurns) and not showAttackScreen:
         if curTurn > numTurns:
             endWho = 3
         elif not PlayerObjs:
             endWho = 2
-        elif nEG >= len(EnemyObjs):
+        elif nEG >= len(PlayerObjs):
             endWho = 2
         elif not EnemyObjs: # or 
             endWho = 1
-        elif nPG >= len(PlayerObjs):
+        elif nPG >= len(EnemyObjs):
             endWho = 1
 
         toDisplayText = "Game Over"
@@ -617,7 +616,59 @@ while True:
                 pygame.quit()
 
 
-    if pullMode and not showAttackScreen and not gameDone:
+    if FixWall and pullMode and not showAttackScreen:
+        dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
+        newDir = []
+        px, py = playerAttacking.rect.x, playerAttacking.rect.y 
+
+        for dx, dy in dir:
+            newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
+            if newX in range(0, wth) and newY in range(0, hth) and wObj[newX][newY]:
+
+                if wObj[newX][newY]:
+                    obj = wObj[newX][newY]
+                    if isinstance(obj, Fences):
+                        newDir.append((newX, newY))
+                        world[newX][newY] = 3                    
+        
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        grid_x = (mouse_x // wrdDiv) * wrdDiv
+        grid_y = (mouse_y // wrdDiv) * wrdDiv
+        
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                playerAttacking = None
+                pullMode = False
+                FixWall = False 
+                closeSideMenu()
+                updateBoard()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    ngX, ngY = grid_x // wrdDiv, grid_y // wrdDiv
+                    if wObj[ngX][ngY] and world[ngX][ngY] == 3 and (ngX, ngY) in newDir:
+                        obj = wObj[ngX][ngY]
+                        if isinstance(obj, Fences):
+                            
+                            if obj.team: # false means it is a enemy
+                                fenceObjs.remove(obj)
+                            else:
+                                obj.HP -= playerAttacking.power
+                                if obj.HP <= 0:
+                                    fenceObjs.remove(obj)
+
+                    playerAttacking.hasMoved, playerAttacking.doneAttack = True, True
+                    updateBoard()
+
+                pullMode = False
+                FixWall = False
+                playerAttacking = None
+                closeSideMenu()
+                updateBoard()  
+
+
+    elif pullMode and not showAttackScreen and not gameDone:
         dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
         newDir = []
         px, py = playerAttacking.rect.x, playerAttacking.rect.y 
@@ -769,6 +820,7 @@ while True:
                         wObj[grid_x // wrdDiv][grid_y // wrdDiv] = new_fence
                         world[grid_x // wrdDiv][grid_y // wrdDiv] = 2
                         playerAttacking.hasMoved, playerAttacking.doneAttack = True, True
+                        updateBoard()
                     buildMode = False
                     playerAttacking = None
                     closeSideMenu()
@@ -848,6 +900,11 @@ while True:
                             elif button.name == "Pull":
                                 toDisplayText = "Pull pressed!"
                                 playerAttacking = sideMenu[1]
+                                pullMode = True
+                            elif button.name == "Fix Wall":
+                                toDisplayText = "Fix Wall pressed!"
+                                playerAttacking = sideMenu[1]
+                                FixWall = True
                                 pullMode = True
                             elif button.name == "Reset":
                                 reset()
