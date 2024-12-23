@@ -62,8 +62,6 @@ class Fences:
         self.surface.fill('Yellow')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
 
-
-
 PlayerObjs = []
 class playObj:
     def __init__(self, x, y, type):
@@ -190,6 +188,7 @@ def eneAttack(ene):
                 attackFunct(player, ene, False, False)
                 break
 
+" May be pushing each other into fences "
 def enePush(ene):
     dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
     newDir = []
@@ -228,6 +227,7 @@ def enePush(ene):
 def eneBuild(ene):
     dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
     newDir = []
+    fixDir = []
     px, py = ene.rect.x, ene.rect.y 
 
     for dx, dy in dir:
@@ -235,19 +235,22 @@ def eneBuild(ene):
         if newX in range(0, wth - 1) and newY in range(0, hth - 1) and not wObj[newX][newY]:
             newDir.append((newX, newY)) 
         elif  newX in range(0, wth - 1) and newY in range(0, hth - 1) and wObj[newX][newY]:
-            
-            # Why does this crash
-            obj = wObj[newX][newY]
-            if isinstance(obj, Fences):
-                if obj.team and random.random >= 0.88: # false means it is a enemy
-                    obj.HP -= ene.power
-                    if obj.HP <= 0:
-                        fenceObjs.remove(obj)
-                elif random.random >= 0.75:
+            fixDir.append((newX, newY)) 
+
+    # This crashes urg
+    if fixDir:
+        print("This was called")
+        nX, nY = random.choice(fixDir)
+        obj = wObj[nX][nY]
+        if isinstance(obj, Fences):
+            if obj.team and random.random() >= 0.88: # false means it is a enemy
+                obj.HP -= ene.power
+                if obj.HP <= 0:
                     fenceObjs.remove(obj)
+            elif random.random() >= 0.75:
+                fenceObjs.remove(obj)
 
-
-    if newDir:
+    elif newDir:
         rand = random.choice(newDir)  # Choose a random tuple from newDir
 
         if wObj[rand[0]][rand[1]] is None: 
