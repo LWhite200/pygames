@@ -94,6 +94,8 @@ class playObj:
             self.power = 1000
             self.moveDistance = 2
 
+# ---------------------------------------------------------------------------------------
+
 EnemyObjs = []
 class enemObj:
     def __init__(self, x, y):
@@ -107,158 +109,172 @@ class enemObj:
         self.maxHP = 150
         self.curHP = 150
         self.power = 100
+        self.strat = "OFF"
 
-    def moveRandom(self):
-        xx, yy = self.x // wrdDiv, self.y // wrdDiv
-        decrease = False
+teamStrat = "OFF"
+eNum = 5
 
-        dir = [(-1, 0), (0, 1), (0, -1), (1, 0)]
+def enemyAI():
+    global teamStrat, curTurn
+    allStrats = ["OFF", "DEF1", "DEF2", "MID", "WALL", "RUN"]
+
+    # choose strat
+    pcx, pcy = 0, 0
+    plaLocations = []
+    for player in PlayerObjs:
+        pX = player.x // 50
+        pY = player.y // 50
+        plaLocations.append((pX, pY))
+        pcx += pX
+        pcy += pY
+    pcx = pcx // len(PlayerObjs)
+    pcy = pcy // len(PlayerObjs)
+
+    fstThird = wth * Fraction(1, 5)
+    sndThird = (wth - fstThird) - 1
+
+    # Find The starting strategy
+    if curTurn <= 3:
+        if random.random() < .60:
+            teamStrat = "MID"
+        elif random.random() < .90:
+            teamStrat = "WALL"
+        elif random.random() < .95:
+            teamStrat = "OFF"
+        else:
+            teamStrat = random.choice(allStrats)
+
+    if pcx >= (sndThird * wth) // 2:    
+        teamStrat = "DEF1"
+    elif pcx <= (fstThird * wth) // 2:
+        teamStrat = "RUN"
+
+    
         
-        attempts = 0
-        while attempts < 10:
-            attempts += 1
-            ranStep = random.randint(1, 4) if not self.canBeAttacked else random.randint(1, 5)
-            
-            if self.canBeAttacked and random.random() < 0.95:
-                decrease = True
-                ranStep = 5
+    teamStrat = "RUN" # debug
+    for enemy in EnemyObjs:
 
-            if ranStep == 5:
-                if decrease:
-                    break
-                decrease = True
-            else:
-                if random.random() < 0.75:
-                    dx, dy = dir[0]  
-                else:  
-                    dx, dy = random.choice(dir[1:])
-
-                new_x, new_y = xx + dx, yy + dy
-
-                if 0 <= new_x < width // wrdDiv and 0 <= new_y < height // wrdDiv:
-                    if wObj[new_x][new_y]:
-                        continue
-
-                    if xx != new_x or yy != new_y:
-                        self.isDefending = False
-                    wObj[xx][yy] = None
-                    wObj[new_x][new_y] = self
-                    self.x, self.y = new_x * wrdDiv, new_y * wrdDiv
-                    break
-
-        # Update the enemy's position on screen
-        self.rect.topleft = (self.x, self.y)
-
-
-    def chooseMove(self):
-        RN = random.randint(2, 5) # 5 means do nothing
-
-        if self.canBeAttacked and random.random() < 0.875:
-            if random.random() < 0.75:
-                RN = 1
-            elif random.random() < 90:
-                RN = 2
-            else:
-                RN = 3
-        self.isDefending = False
         enemy.canBeAttacked = False
 
-        if RN == 1:
-            eneAttack(self)
-        elif RN == 2:
-            self.isDefending = True
-        elif RN == 3:
-            enePush(self)
-        elif RN == 4:
-            eneBuild(self)
-        self.canBeAttacked = False
+        objsNear = []
+        objsNear = ObjectsNear(enemy)
+        plaNear = []
+        plaNear = PlayerNear(objsNear)
 
-def eneAttack(ene):
+        # If they should diverge from the normal strategy
+        # if teamStrat == "RUN":
+          #  enemy.strat = "RUN"
+        #elif enemy.curHP > enemy.maxHP // 2 and enemy.curHP != enemy.maxHP and plaNear:
+         #   enemy.strat = random.choice(["OFF", "DEF1"])
+        #elif enemy.curHP > enemy.maxHP // 2 and plaNear:
+         #   enemy.strat = "DEF1"
+        #else:
+         #   enemy.strat = teamStrat
+
+        
+        enemy.strat=  teamStrat
+        es = enemy.strat
+
+        if es == "OFF":
+            if plaNear:
+                if random.random() < .50:
+                    eneAttack(enemy, plaNear)
+                else:
+                    eneMove(enemy)
+                    objsNear = ObjectsNear(enemy)
+                    plaNear = PlayerNear(objsNear)
+                    if plaNear: eneAttack(enemy, plaNear)
+            else:
+                eneMove(enemy)
+        elif es == "DEF1" and plaNear:
+            print("DEF1")
+        elif es == "DEF2":
+            print("DEF2")
+        elif es == "MID":
+            print("mid")
+        elif es == "WALL":
+            print("Wall")
+        elif es == "RUN":
+            print("RUN")
+            eX = enemy.x // wrdDiv
+            eY = enemy.y // wrdDiv
+            if not wObj[eX - 1][eY]:
+                enemy.x -= wrdDiv
+                enemy.rect.topleft = (enemy.x, enemy.y)
+            else:
+                eneMove(enemy)
+        else:
+            eneMove(enemy)
+
+def ObjectsNear(ene):
     directions = [
             (-wrdDiv, 0), (wrdDiv, 0), (0, -wrdDiv), (0, wrdDiv), 
             (-wrdDiv, -wrdDiv), (wrdDiv, -wrdDiv), (-wrdDiv, wrdDiv), (wrdDiv, wrdDiv) ]
-
+    objs = []
     for dx, dy in directions:
-        adj_x = (ene.x + dx) // wrdDiv
-        adj_y = (ene.y + dy) // wrdDiv
+        nX = (ene.x + dx) // wrdDiv
+        nY = (ene.y + dy) // wrdDiv
+        if 0 <= nX < wth and 0 <= nY < hth and wObj[nX][nY]:
+            objs.append((nX, nY))
+    if objs:
+        return objs
+    else:
+        return []
+    
+def PlayerNear(objsNear):
+    plaNear = []
+    for ob in objsNear:
+        nX, nY = ob
+        player = wObj[nX][nY]
+        if isinstance(player, playObj):
+            plaNear.append((nX, nY))
 
-        if 0 <= adj_x < wth and 0 <= adj_y < hth:
-            player = wObj[adj_x][adj_y]
-            if isinstance(player, playObj):
-                attackFunct(player, ene, False, False)
+    return plaNear
+
+def eneMove(ene):
+    xx, yy = ene.x // wrdDiv, ene.y // wrdDiv
+    decrease = False
+    dir = [(-1, 0), (0, 1), (0, -1), (1, 0)]
+    attempts = 0
+    while attempts < 10:
+        attempts += 1
+        ranStep = random.randint(1, 4) if not ene.canBeAttacked else random.randint(1, 5)
+        if ene.canBeAttacked and random.random() < 0.95:
+            decrease = True
+            ranStep = 5
+        if ranStep == 5:
+            if decrease:
                 break
+            decrease = True
+        else:
+            if random.random() < 0.75:
+                dx, dy = dir[0]  
+            else:  
+                dx, dy = random.choice(dir[1:])
+            new_x, new_y = xx + dx, yy + dy
+            if 0 <= new_x < width // wrdDiv and 0 <= new_y < height // wrdDiv:
+                if wObj[new_x][new_y]:
+                    continue
+                if xx != new_x or yy != new_y:
+                    ene.isDefending = False
+                wObj[xx][yy] = None
+                wObj[new_x][new_y] = ene
+                ene.x, ene.y = new_x * wrdDiv, new_y * wrdDiv
+                break
+    ene.rect.topleft = (ene.x, ene.y)
 
-" May be pushing each other into fences "
-def enePush(ene):
-    dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
-    newDir = []
-    px, py = ene.rect.x, ene.rect.y 
+def eneAttack(ene, plaNear):
+    global wObj, playObj
+    pX, pY = random.choice(plaNear)
 
-    for dx, dy in dir:
-        newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
-        if newX in range(0, wth - 1) and newY in range(0, hth - 1) and wObj[newX][newY]:
-            enemy = wObj[newX][newY]
-            if isinstance(enemy, enemObj) or isinstance(enemy, playObj):
-                newDir.append((newX, newY))
+    player = wObj[pX][pY]
+    if isinstance(player, playObj):
+        attackFunct(player, ene, False, False)
 
-    if newDir:
-        rand = random.choice(newDir)  # Choose a random tuple from newDir
-        target = wObj[rand[0]][rand[1]]
 
-        nX = (target.x - px) // 50 # 0 or -1 or 1 for directions
-        nY = (target.y - py) // 50
-        pushDist = random.choice([wrdDiv, wrdDiv * 2])
 
-        new_x = target.x + (nX * pushDist) # original plus the new position
-        new_y = target.y + (nY * pushDist)
 
-        if 0 <= new_x < width and 0 <= new_y < height:
-            if isinstance(target, playObj):
-                if target.isDefending:
-                    attackFunct(target, ene, False, True)
 
-            global toDisplayText
-            toDisplayText = "Enemy Pushed Someone"
-            target.x = new_x
-            target.y = new_y
-            target.rect.topleft = (target.x, target.y)
-            updateBoard()
-
-def eneBuild(ene):
-    dir = [(wrdDiv, 0), (-wrdDiv, 0), (0, wrdDiv), (0, -wrdDiv)]
-    newDir = []
-    fixDir = []
-    px, py = ene.rect.x, ene.rect.y 
-
-    for dx, dy in dir:
-        newX, newY = (px + dx) // wrdDiv, (py + dy) // wrdDiv
-        if newX in range(0, wth - 1) and newY in range(0, hth - 1) and not wObj[newX][newY]:
-            newDir.append((newX, newY)) 
-        elif  newX in range(0, wth - 1) and newY in range(0, hth - 1) and wObj[newX][newY]:
-            fixDir.append((newX, newY)) 
-
-    # This crashes urg
-    if fixDir:
-        print("This was called")
-        nX, nY = random.choice(fixDir)
-        obj = wObj[nX][nY]
-        if isinstance(obj, Fences):
-            if obj.team and random.random() >= 0.88: # false means it is a enemy
-                obj.HP -= ene.power
-                if obj.HP <= 0:
-                    fenceObjs.remove(obj)
-            elif random.random() >= 0.75:
-                fenceObjs.remove(obj)
-
-    elif newDir:
-        rand = random.choice(newDir)  # Choose a random tuple from newDir
-
-        if wObj[rand[0]][rand[1]] is None: 
-            new_fence = Fences(rand[0] * wrdDiv, rand[1] * wrdDiv, False) 
-            fenceObjs.append(new_fence)
-            wObj[rand[0]][rand[1]] = new_fence
-            world[rand[0]][rand[1]] = 2
-    updateBoard()
 
 def updateBoard():
     
@@ -836,16 +852,16 @@ while True:
                 battleText[2] = 0
             if event.type == pygame.QUIT:
                 pygame.quit()
+
+    " --- Normal Game Loop Here ---"
     if not buildMode and not showAttackScreen and not pushMode and not gameDone: #-------------------------------------------------
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
             if event.type == pygame.KEYDOWN:
                 sideMenu[0], sideMenu[1] = False, None
-                for enemy in EnemyObjs:
-                    enemy.moveRandom()
-                    enemy.chooseMove()
-                    enemy.canBeAttacked = False
+
+                enemyAI() # The new enemy A.I.
 
                 for player in PlayerObjs:
                     player.hasMoved = False
