@@ -111,8 +111,10 @@ class enemObj:
         self.power = 100
         self.strat = "OFF"
 
-teamStrat = "OFF"
+teamStrat = "MID"
 eNum = 5
+
+wLoc = 15
 
 def enemyAI():
     global teamStrat, curTurn
@@ -133,8 +135,8 @@ def enemyAI():
     fstThird = wth * Fraction(1, 5)
     sndThird = (wth - fstThird) - 1
 
-    # Find The starting strategy
-    if curTurn <= 3:
+    # Find The team's strategy
+    if curTurn == 0:
         if random.random() < .60:
             teamStrat = "MID"
         elif random.random() < .90:
@@ -143,18 +145,19 @@ def enemyAI():
             teamStrat = "OFF"
         else:
             teamStrat = random.choice(allStrats)
-
-    if pcx >= (sndThird * wth) // 2:    
-        teamStrat = "DEF1"
-    elif pcx <= (fstThird * wth) // 2:
-        teamStrat = "RUN"
-
-    
+    elif curTurn <= 3:
+        teamStrat = teamStrat
+    elif pcx <= (sndThird * wth) // 2:    
+        teamStrat = teamStrat
+    elif pcx >= (fstThird * wth) // 2:
+        teamStrat = teamStrat
         
-    teamStrat = "RUN" # debug
     for enemy in EnemyObjs:
 
         enemy.canBeAttacked = False
+
+        enemy.strat=  teamStrat
+        
 
         objsNear = []
         objsNear = ObjectsNear(enemy)
@@ -162,25 +165,22 @@ def enemyAI():
         plaNear = PlayerNear(objsNear)
 
         # If they should diverge from the normal strategy
-        # if teamStrat == "RUN":
-          #  enemy.strat = "RUN"
-        #elif enemy.curHP > enemy.maxHP // 2 and enemy.curHP != enemy.maxHP and plaNear:
-         #   enemy.strat = random.choice(["OFF", "DEF1"])
-        #elif enemy.curHP > enemy.maxHP // 2 and plaNear:
-         #   enemy.strat = "DEF1"
-        #else:
-         #   enemy.strat = teamStrat
+        if teamStrat == "RUN":
+            enemy.strat = "RUN"
+        elif plaNear:
+            enemy.strat = random.choice(["OFF", "DEF1", "OFF", teamStrat])
 
-        
-        enemy.strat=  teamStrat
         es = enemy.strat
-
         if es == "OFF":
+            print("OFF")
             if plaNear:
                 if random.random() < .50:
                     eneAttack(enemy, plaNear)
                 else:
-                    eneMove(enemy)
+                    if teamStrat == "MID":
+                        moveMid(enemy)
+                    else:
+                        eneMove(enemy)
                     objsNear = ObjectsNear(enemy)
                     plaNear = PlayerNear(objsNear)
                     if plaNear: eneAttack(enemy, plaNear)
@@ -191,7 +191,11 @@ def enemyAI():
         elif es == "DEF2":
             print("DEF2")
         elif es == "MID":
-            print("mid")
+            moveMid(enemy)
+            if random.random() < .60:
+                objsNear = ObjectsNear(enemy)
+                plaNear = PlayerNear(objsNear)
+                if plaNear: eneAttack(enemy, plaNear)
         elif es == "WALL":
             print("Wall")
         elif es == "RUN":
@@ -231,27 +235,66 @@ def PlayerNear(objsNear):
 
     return plaNear
 
+def closestPlayer(ene):
+    q = deque()
+    visit = set()
+    directions = [(0, 1), (1, 0), (0, -1), (-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (2, 0), (-2, 0)]
+    start_x, start_y = ene.x // wrdDiv, ene.y // wrdDiv  
+    q.append((start_x, start_y))
+    visit.add((start_x, start_y))
+    count = 0
+
+    while q and len(PlayerObjs) > 0:
+        count += 1
+
+        for _ in range(len(q)): 
+            x, y = q.popleft()
+
+            for dx, dy in directions: 
+                nx, ny = x + dx, y + dy
+
+                if 0 <= nx < wth and 0 <= ny < hth and (nx, ny) not in visit:
+                    visit.add((nx, ny))
+
+                    if wObj[nx][ny]: 
+                        player = wObj[nx][ny]
+                        if isinstance(player, playObj): 
+                            return player
+                    
+                    if not wObj[nx][ny]:  
+                        q.append((nx, ny))
+    return None
+
 def eneMove(ene):
     xx, yy = ene.x // wrdDiv, ene.y // wrdDiv
     decrease = False
-    dir = [(-1, 0), (0, 1), (0, -1), (1, 0)]
+    dir = [(-1, 0), (0, 1), (0, -1), (1, 0), (-1, -1), (-1, 1), (1, 1), (1, -1),
+            (2, 0), (-2, 0), (0, 2), (0, -2), (2, 2), (2, -2), (-2, 2), (-2, -2),
+            (2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2)]
     attempts = 0
     while attempts < 10:
         attempts += 1
         ranStep = random.randint(1, 4) if not ene.canBeAttacked else random.randint(1, 5)
+        
+        # If the enemy can be attacked and the random chance is high, break
         if ene.canBeAttacked and random.random() < 0.95:
             decrease = True
             ranStep = 5
+        
         if ranStep == 5:
             if decrease:
                 break
             decrease = True
         else:
+            # Prioritize leftward movement (more likely to move left if canBeAttacked is False)
             if random.random() < 0.75:
-                dx, dy = dir[0]  
-            else:  
-                dx, dy = random.choice(dir[1:])
+                dx, dy = dir[0]  # Always move 2 steps left (high priority)
+            else:
+                dx, dy = random.choice(dir[1:])  # Randomly pick from other directions
+
             new_x, new_y = xx + dx, yy + dy
+
+            # Ensure the new position is within bounds
             if 0 <= new_x < width // wrdDiv and 0 <= new_y < height // wrdDiv:
                 if wObj[new_x][new_y]:
                     continue
@@ -261,7 +304,52 @@ def eneMove(ene):
                 wObj[new_x][new_y] = ene
                 ene.x, ene.y = new_x * wrdDiv, new_y * wrdDiv
                 break
+    
     ene.rect.topleft = (ene.x, ene.y)
+
+# Follow player's behind the enemy barrior
+def moveMid(ene):
+    targX = wth // 2 - 1
+    eX = ene.x // 50
+    eY = ene.y // 50
+    need = (targX - eX)
+
+    pY = 0
+    ppN = closestPlayer(ene)
+    if ppN:
+        pY = ppN.y // 50
+    pY = pY - eY
+
+    if need == -1 and 0 <= targX < wth and 0 <= eY < hth and not wObj[eX - 1][eY]:
+        MMM(ene, -1, 0)
+    elif need == -1 and 0 <= targX < wth and 0 <= eY < hth:
+        dir = [(-1, 0), (-1, 1), (-1, -1), (-1, 2), (-1, -2)]
+        for dx, dy in dir:
+            if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
+                MMM(ene, dx, dy)
+                break
+    elif need <= -2:
+        if not wObj[eX - 2][eY]:
+            MMM(ene, -2, 0)
+        else:
+            dir = [(-2, 0), (-2, 1), (-2, -1), (-1, 0), (-1, 1), (-1, -1), (-1, 2), (-1, -2)]
+            for dx, dy in dir:
+                if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
+                    MMM(ene, dx, dy)
+                    break
+    else:
+        if ppN and 0 <= eX < wth and 0 <= eY + pY < hth and not wObj[eX][eY + pY]:
+            MMM(ene, 0, pY)
+
+
+def MMM(ene, nX, nY):
+    eX = ene.x // 50
+    eY = ene.y // 50
+    wObj[eX][eY] = None
+    ene.x += nX * wrdDiv
+    ene.y += nY * wrdDiv
+    ene.rect.topleft = (ene.x, ene.y)
+    wObj[ene.x // 50][ene.y // 50] = ene
 
 def eneAttack(ene, plaNear):
     global wObj, playObj
