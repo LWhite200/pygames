@@ -92,7 +92,7 @@ class playObj:
             self.maxHP = 1500
             self.curHP = 1500
             self.power = 1000
-            self.moveDistance = 2
+            self.moveDistance = 20
 
 # ---------------------------------------------------------------------------------------
 
@@ -314,34 +314,78 @@ def moveMid(ene):
     eY = ene.y // 50
     need = (targX - eX)
 
-    pY = 0
-    ppN = closestPlayer(ene)
-    if ppN:
-        pY = ppN.y // 50
-    pY = pY - eY
+    behind_player = None
+    for player in PlayerObjs:
+        pX = player.x // 50
+        pY = player.y // 50
+        if pX >= eX:
+            behind_player = player
+            break
 
-    if need == -1 and 0 <= targX < wth and 0 <= eY < hth and not wObj[eX - 1][eY]:
-        MMM(ene, -1, 0)
-    elif need == -1 and 0 <= targX < wth and 0 <= eY < hth:
-        dir = [(-1, 0), (-1, 1), (-1, -1), (-1, 2), (-1, -2)]
-        for dx, dy in dir:
-            if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
-                MMM(ene, dx, dy)
-                break
-    elif need <= -2:
-        if not wObj[eX - 2][eY]:
-            MMM(ene, -2, 0)
-        else:
-            dir = [(-2, 0), (-2, 1), (-2, -1), (-1, 0), (-1, 1), (-1, -1), (-1, 2), (-1, -2)]
+    if behind_player:
+        pX = behind_player.x // 50
+        pY = behind_player.y // 50
+
+        dx = pX - eX
+        dy = pY - eY
+
+        if abs(dx) > 2:
+            dx = 2
+        elif abs(dx) == 2:
+            dx = 1
+        elif abs(dx) < 2:
+            dx = 0
+
+        if abs(dy) > 2:
+            dy = 2
+        elif abs(dy) == 2:
+            dy = 1
+        elif abs(dy) < 2:
+            dy = 0   
+        
+        if pX < eX:
+            dx *= -1
+        if pY < eY:
+            dy *= -1
+
+        if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
+            MMM(ene, dx, dy)
+
+        if abs(ene.x - behind_player.x) <= 50 and abs(ene.y - behind_player.y) <= 50:
+            if ene.strat != "OFF":
+                eneAttack(enemy, behind_player)
+
+    else:
+        pY = 0
+        ppN = closestPlayer(ene)
+        if ppN:
+            pY = ppN.y // 50
+        pY = pY - eY
+
+        if need == -1 and 0 <= targX < wth and 0 <= eY < hth and not wObj[eX - 1][eY]:
+            MMM(ene, -1, 0)
+        elif need == -1 and 0 <= targX < wth and 0 <= eY < hth:
+            dir = [(-1, 0), (-1, 1), (-1, -1), (-1, 2), (-1, -2)]
             for dx, dy in dir:
                 if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
                     MMM(ene, dx, dy)
                     break
-    else:
-        if ppN and 0 <= eX < wth and 0 <= eY + pY < hth and not wObj[eX][eY + pY]:
-            MMM(ene, 0, pY)
+        elif need <= -2:
+            if not wObj[eX - 2][eY]:
+                MMM(ene, -2, 0)
+            else:
+                dir = [(-2, 0), (-2, 1), (-2, -1), (-1, 0), (-1, 1), (-1, -1), (-1, 2), (-1, -2)]
+                for dx, dy in dir:
+                    if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
+                        MMM(ene, dx, dy)
+                        break
+        else:
+            if ppN and 0 <= eX < wth and 0 <= eY + pY < hth and not wObj[eX][eY + pY]:
+                MMM(ene, 0, pY)
 
 
+
+# To move enemies
 def MMM(ene, nX, nY):
     eX = ene.x // 50
     eY = ene.y // 50
@@ -660,7 +704,7 @@ def reset():
 
     PlayerObjs.append(playObj(250, 100, "norm"))
     PlayerObjs.append(playObj(300, 200, "norm"))
-    PlayerObjs.append(playObj(400, 300, "norm"))
+    PlayerObjs.append(playObj(400, 300, "God"))
     PlayerObjs.append(playObj(300, 400, "norm"))
     PlayerObjs.append(playObj(250, 500, "norm"))
 
