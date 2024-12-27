@@ -114,7 +114,7 @@ class enemObj:
 teamStrat = "MID"
 eNum = 5
 
-wLoc = 15
+wLoc = wth // 2 - 8
 
 def enemyAI():
     global teamStrat, curTurn
@@ -309,7 +309,7 @@ def eneMove(ene):
 
 # Follow player's behind the enemy barrior
 def moveMid(ene):
-    targX = wth // 2 - 1
+    targX = wLoc
     eX = ene.x // 50
     eY = ene.y // 50
     need = (targX - eX)
@@ -351,10 +351,6 @@ def moveMid(ene):
         if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
             MMM(ene, dx, dy)
 
-        if abs(ene.x - behind_player.x) <= 50 and abs(ene.y - behind_player.y) <= 50:
-            if ene.strat != "OFF":
-                eneAttack(enemy, behind_player)
-
     else:
         pY = 0
         ppN = closestPlayer(ene)
@@ -370,13 +366,19 @@ def moveMid(ene):
                 if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
                     MMM(ene, dx, dy)
                     break
+
+
         elif need <= -2:
-            if not wObj[eX - 2][eY]:
+            if not wObj[eX - 2][eY] and not wObj[eX - 1][eY]:
                 MMM(ene, -2, 0)
             else:
                 dir = [(-2, 0), (-2, 1), (-2, -1), (-1, 0), (-1, 1), (-1, -1), (-1, 2), (-1, -2)]
                 for dx, dy in dir:
-                    if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy]:
+                    tx, ty = dx, dy
+                    if abs(dx) > 1: tx = tx // 2
+                    if abs(dy) > 1: ty = ty // 2
+
+                    if 0 <= (eX + dx) < wth and 0 <= (eY + dy) < hth and not wObj[eX + dx][eY + dy] and not wObj[eX + tx][eY + ty]:
                         MMM(ene, dx, dy)
                         break
         else:
@@ -704,7 +706,7 @@ def reset():
 
     PlayerObjs.append(playObj(250, 100, "norm"))
     PlayerObjs.append(playObj(300, 200, "norm"))
-    PlayerObjs.append(playObj(400, 300, "God"))
+    PlayerObjs.append(playObj(400, 300, "norm"))
     PlayerObjs.append(playObj(300, 400, "norm"))
     PlayerObjs.append(playObj(250, 500, "norm"))
 
