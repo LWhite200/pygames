@@ -114,10 +114,11 @@ class enemObj:
 teamStrat = "MID"
 eNum = 5
 
-wLoc = wth // 2 - 8
+wLoc = wth // 2
+yLoc = hth // 2
 
 def enemyAI():
-    global teamStrat, curTurn
+    global teamStrat, curTurn, wLoc
     allStrats = ["OFF", "DEF1", "DEF2", "MID", "WALL", "RUN"]
 
     # choose strat
@@ -198,6 +199,12 @@ def enemyAI():
                 if plaNear: eneAttack(enemy, plaNear)
         elif es == "WALL":
             print("Wall")
+            if wLoc-1 == (enemy.x // 50 - 1) and not wObj[wLoc-1][enemy.y // 50]:
+                eneWall(wLoc-1, enemy.y // 50)
+            else:
+                moveMid(enemy)
+                if wLoc-1 == (enemy.x // 50 - 1) and not wObj[wLoc-1][enemy.y // 50]:
+                    eneWall(wLoc-1, enemy.y // 50)
         elif es == "RUN":
             print("RUN")
             eX = enemy.x // wrdDiv
@@ -209,6 +216,11 @@ def enemyAI():
                 eneMove(enemy)
         else:
             eneMove(enemy)
+
+def eneWall(x, y):
+    print("Wall placed")
+    new_fence = Fences(x * 50, y * 50, False) 
+    fenceObjs.append(new_fence)
 
 def ObjectsNear(ene):
     directions = [
@@ -385,8 +397,6 @@ def moveMid(ene):
             if ppN and 0 <= eX < wth and 0 <= eY + pY < hth and not wObj[eX][eY + pY]:
                 MMM(ene, 0, pY)
 
-
-
 # To move enemies
 def MMM(ene, nX, nY):
     eX = ene.x // 50
@@ -404,11 +414,6 @@ def eneAttack(ene, plaNear):
     player = wObj[pX][pY]
     if isinstance(player, playObj):
         attackFunct(player, ene, False, False)
-
-
-
-
-
 
 def updateBoard():
     
