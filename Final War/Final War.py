@@ -199,7 +199,20 @@ def enemyAI():
                 if plaNear: eneAttack(enemy, plaNear)
         elif es == "WALL":
             print("Wall")
-            if wLoc-1 == (enemy.x // 50 - 1) and not wObj[wLoc-1][enemy.y // 50]:
+            
+            # chat gbt why is this crashing?????
+            if wLoc-1 == (enemy.x // 50 - 1) and wObj[wLoc-1][enemy.y // 50]:
+                
+                enY = enemy.y // 50
+                DY = [-2, -1, 1, 2]
+                for dy in DY:
+                    if (enY + dy) in range(0, hth) and not wObj[wLoc-1][enY + dy] and not wObj[wLoc][enY + dy]:
+                        print("Please don't crash")
+                        MMM(enemy, 0, dy)
+                        eneWall(wLoc-1, enemy.y // 50)
+                        break
+                    
+            elif wLoc-1 == (enemy.x // 50 - 1) and not wObj[wLoc-1][enemy.y // 50]:
                 eneWall(wLoc-1, enemy.y // 50)
             else:
                 moveMid(enemy)
@@ -422,8 +435,8 @@ def updateBoard():
     worldScore[0], worldScore[1] = 0, 0
     nPG, nEG = 0, 0
 
-    fstThird = wth * Fraction(1, 5)
-    sndThird = (wth - fstThird) - 1
+    fstThird = int(wth * Fraction(1, 5))
+    sndThird = int((wth - fstThird) - 1)
 
     for i in range(wth):
         for j in range(hth):
@@ -709,17 +722,17 @@ def reset():
     fenceObjs = []
 
 
-    PlayerObjs.append(playObj(250, 100, "norm"))
-    PlayerObjs.append(playObj(300, 200, "norm"))
-    PlayerObjs.append(playObj(400, 300, "norm"))
-    PlayerObjs.append(playObj(300, 400, "norm"))
-    PlayerObjs.append(playObj(250, 500, "norm"))
+    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 100, "norm"))
+    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 200, "norm"))
+    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 300, "norm"))
+    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 400, "norm"))
+    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 500, "norm"))
 
-    EnemyObjs.append(enemObj(700, 100))
-    EnemyObjs.append(enemObj(650, 200))
-    EnemyObjs.append(enemObj(550, 300))
-    EnemyObjs.append(enemObj(650, 400))
-    EnemyObjs.append(enemObj(700, 500))
+    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 100))
+    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 200))
+    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 300))
+    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 400))
+    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 500))
 
     numTurns = (len(PlayerObjs) + len(EnemyObjs)) * 2
     updateBoard()
