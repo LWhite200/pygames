@@ -8,7 +8,7 @@ import pygame  # type: ignore
 import random
 pygame.init()
 
-width, height = 1000, 600
+width, height = 1000, 800
 wth, hth = (width // 100) * 2, (height // 100) * 2
 wrdDiv = 50 # translate phyiscal location to world grid
 screen = pygame.display.set_mode((width, height))
@@ -119,14 +119,14 @@ yLoc = hth // 2
 
 def enemyAI():
     global teamStrat, curTurn, wLoc
-    allStrats = ["OFF", "DEF1", "DEF2", "MID", "WALL", "RUN"]
+    allStrats = ["OFF", "MID","DEF", "WALL", "RUN"] 
 
     # choose strat
     pcx, pcy = 0, 0
     plaLocations = []
     for player in PlayerObjs:
-        pX = player.x // 50
-        pY = player.y // 50
+        pX = player.x // wrdDiv
+        pY = player.y // wrdDiv
         plaLocations.append((pX, pY))
         pcx += pX
         pcy += pY
@@ -138,28 +138,28 @@ def enemyAI():
 
     # Find The team's strategy
     if curTurn == 0:
-        if random.random() < .60:
-            teamStrat = "MID"
-        elif random.random() < .90:
-            teamStrat = "WALL"
-        elif random.random() < .95:
-            teamStrat = "OFF"
-        else:
-            teamStrat = random.choice(allStrats)
-    elif curTurn <= 3:
-        teamStrat = teamStrat
-    elif pcx <= (sndThird * wth) // 2:    
-        teamStrat = teamStrat
-    elif pcx >= (fstThird * wth) // 2:
-        teamStrat = teamStrat
+        wLoc = wth // 2
+        teamStrat = random.choice(allStrats)
+    elif curTurn > 3:
+        if teamStrat == "RUN" or (curTurn >= 5 and random.random() < 0.025):
+            teamStrat = "RUN"
+            wLoc = 1
+        elif pcx > fstThird or pcx < sndThird:
+            wLoc = 1
+        elif teamStrat == "OFF" and pcx < wth // 2:
+            wLoc = pcx
+        elif teamStrat == "DEF" and pcx < wth // 2:
+            wLoc = sndThird - 2
+        elif pcx < wth // 2:
+            wLoc = wth // 2
+        elif pcx > wth // 2:
+            wLoc = pcx + 1
         
+
     for enemy in EnemyObjs:
-
         enemy.canBeAttacked = False
-
-        enemy.strat=  teamStrat
+        enemy.strat = teamStrat
         
-
         objsNear = []
         objsNear = ObjectsNear(enemy)
         plaNear = []
@@ -169,7 +169,7 @@ def enemyAI():
         if teamStrat == "RUN":
             enemy.strat = "RUN"
         elif plaNear:
-            enemy.strat = random.choice(["OFF", "DEF1", "OFF", teamStrat])
+            enemy.strat = random.choice(["OFF", "DEF", "OFF", teamStrat])
 
         es = enemy.strat
         if es == "OFF":
@@ -187,11 +187,10 @@ def enemyAI():
                     if plaNear: eneAttack(enemy, plaNear)
             else:
                 eneMove(enemy)
-        elif es == "DEF1" and plaNear:
-            print("DEF1")
-        elif es == "DEF2":
-            print("DEF2")
+        elif es == "DEF":
+            print("DEF")
         elif es == "MID":
+            print("MID")
             moveMid(enemy)
             if random.random() < .60:
                 objsNear = ObjectsNear(enemy)
@@ -199,40 +198,52 @@ def enemyAI():
                 if plaNear: eneAttack(enemy, plaNear)
         elif es == "WALL":
             print("Wall")
-            
-            # chat gbt why is this crashing?????
-            if wLoc-1 == (enemy.x // 50 - 1) and wObj[wLoc-1][enemy.y // 50]:
-                
-                enY = enemy.y // 50
-                DY = [-2, -1, 1, 2]
+            if wLoc-1 == (enemy.x // wrdDiv - 1) and wObj[wLoc-1][enemy.y // wrdDiv]:
+                enY = enemy.y // wrdDiv
+                DY = [-1, 1, -2, 2]
+                hasMoved = False
                 for dy in DY:
                     if (enY + dy) in range(0, hth) and not wObj[wLoc-1][enY + dy] and not wObj[wLoc][enY + dy]:
-                        print("Please don't crash")
                         MMM(enemy, 0, dy)
-                        eneWall(wLoc-1, enemy.y // 50)
-                        break
-                    
-            elif wLoc-1 == (enemy.x // 50 - 1) and not wObj[wLoc-1][enemy.y // 50]:
-                eneWall(wLoc-1, enemy.y // 50)
+                        eneWall(wLoc-1, enemy.y // wrdDiv)
+                        hasMoved = True
+                        break        
+                    if not hasMoved:
+                        moveMid(enemy)
+            elif wLoc-1 == (enemy.x // wrdDiv - 1) and not wObj[wLoc-1][enemy.y // wrdDiv]:
+                eneWall(wLoc-1, enemy.y // wrdDiv)
             else:
                 moveMid(enemy)
-                if wLoc-1 == (enemy.x // 50 - 1) and not wObj[wLoc-1][enemy.y // 50]:
-                    eneWall(wLoc-1, enemy.y // 50)
+                if wLoc-1 == (enemy.x // wrdDiv - 1) and not wObj[wLoc-1][enemy.y // wrdDiv]:
+                    eneWall(wLoc-1, enemy.y // wrdDiv)
         elif es == "RUN":
             print("RUN")
-            eX = enemy.x // wrdDiv
-            eY = enemy.y // wrdDiv
-            if not wObj[eX - 1][eY]:
-                enemy.x -= wrdDiv
-                enemy.rect.topleft = (enemy.x, enemy.y)
-            else:
-                eneMove(enemy)
+            eneRun(enemy)
+            
         else:
-            eneMove(enemy)
+            print("Errorororor")
+
+def eneRun(ene):
+    eX = ene.x // wrdDiv
+    eY = ene.y // wrdDiv
+    dir = [(-2, 0), (-2, 1), (-2, -1), (-2, 2), (-2, -2), 
+            (-1, 0), (-1, 1), (-1, -1), (-1, 2), (-1, -2),
+            (-0, 0), (-0, 1), (-0, -1), (-0, 2), (-0, -2),
+            (1, 0), (1, 1), (1, -1), (1, 2), (1, -2)]
+
+    for dx, dy in dir:
+        if (eX + dx) in range(0, wth) and (eY + dy) in range(0, hth) and not wObj[eX + dx][eY + dy]:
+            if abs(dx) > 1 and wObj[eX + (dx // 2)][eY + dy]:
+                continue
+            elif abs(dy) > 1 and wObj[eX][eY + (dy // 2)]:
+                continue
+            else:
+                MMM(ene, dx, dy)
+                break
 
 def eneWall(x, y):
     print("Wall placed")
-    new_fence = Fences(x * 50, y * 50, False) 
+    new_fence = Fences(x * wrdDiv, y * wrdDiv, False) 
     fenceObjs.append(new_fence)
 
 def ObjectsNear(ene):
@@ -335,21 +346,21 @@ def eneMove(ene):
 # Follow player's behind the enemy barrior
 def moveMid(ene):
     targX = wLoc
-    eX = ene.x // 50
-    eY = ene.y // 50
+    eX = ene.x // wrdDiv
+    eY = ene.y // wrdDiv
     need = (targX - eX)
 
     behind_player = None
     for player in PlayerObjs:
-        pX = player.x // 50
-        pY = player.y // 50
+        pX = player.x // wrdDiv
+        pY = player.y // wrdDiv
         if pX >= eX:
             behind_player = player
             break
 
     if behind_player:
-        pX = behind_player.x // 50
-        pY = behind_player.y // 50
+        pX = behind_player.x // wrdDiv
+        pY = behind_player.y // wrdDiv
 
         dx = pX - eX
         dy = pY - eY
@@ -380,7 +391,7 @@ def moveMid(ene):
         pY = 0
         ppN = closestPlayer(ene)
         if ppN:
-            pY = ppN.y // 50
+            pY = ppN.y // wrdDiv
         pY = pY - eY
 
         if need == -1 and 0 <= targX < wth and 0 <= eY < hth and not wObj[eX - 1][eY]:
@@ -412,13 +423,13 @@ def moveMid(ene):
 
 # To move enemies
 def MMM(ene, nX, nY):
-    eX = ene.x // 50
-    eY = ene.y // 50
+    eX = ene.x // wrdDiv
+    eY = ene.y // wrdDiv
     wObj[eX][eY] = None
     ene.x += nX * wrdDiv
     ene.y += nY * wrdDiv
     ene.rect.topleft = (ene.x, ene.y)
-    wObj[ene.x // 50][ene.y // 50] = ene
+    wObj[ene.x // wrdDiv][ene.y // wrdDiv] = ene
 
 def eneAttack(ene, plaNear):
     global wObj, playObj
@@ -721,18 +732,9 @@ def reset():
     EnemyObjs = []
     fenceObjs = []
 
-
-    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 100, "norm"))
-    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 200, "norm"))
-    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 300, "norm"))
-    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 400, "norm"))
-    PlayerObjs.append(playObj(int(width * Fraction(1, 4)), 500, "norm"))
-
-    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 100))
-    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 200))
-    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 300))
-    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 400))
-    EnemyObjs.append(enemObj(int(width * Fraction(3, 4)), 500))
+    for i in range(-2, 3):
+        PlayerObjs.append(playObj(int(width * Fraction(1, 4)), (height // 2) + (wrdDiv * i * 2), "norm"))
+        EnemyObjs.append(enemObj(int(width * Fraction(3, 4) - wrdDiv), (height // 2) + (wrdDiv * i * 2)))
 
     numTurns = (len(PlayerObjs) + len(EnemyObjs)) * 2
     updateBoard()
@@ -877,12 +879,12 @@ while True:
                         
                         for enemy in PlayerObjs:
                             if enemy.x == grid_x and enemy.y == grid_y:
-                                nX = (grid_x - px) // 50 # 0 or -1 or 1 for directions
-                                nY = (grid_y - py) // 50
+                                nX = (grid_x - px) // wrdDiv # 0 or -1 or 1 for directions
+                                nY = (grid_y - py) // wrdDiv
                                 pushDist = random.choice([wrdDiv * 2, wrdDiv * 3]) # the pixel representation of 1 or 2 tiles
                                 new_x = grid_x - (nX * pushDist) # original plus the new position
                                 new_y = grid_y - (nY * pushDist)
-                                if 0 <= new_x < width and 0 <= new_y < height and not wObj[new_x // 50][new_y // 50]:
+                                if 0 <= new_x < width and 0 <= new_y < height and not wObj[new_x // wrdDiv][new_y // wrdDiv]:
                                     enemy.x = new_x
                                     enemy.y = new_y
                                     enemy.rect.topleft = (enemy.x, enemy.y)
@@ -934,15 +936,15 @@ while True:
                         for enemy in EnemyObjs:
                             if enemy.x == grid_x and enemy.y == grid_y:
 
-                                nX = (grid_x - px) // 50 # 0 or -1 or 1 for directions
-                                nY = (grid_y - py) // 50
+                                nX = (grid_x - px) // wrdDiv # 0 or -1 or 1 for directions
+                                nY = (grid_y - py) // wrdDiv
 
                                 pushDist = random.choice([wrdDiv, wrdDiv * 2]) # the pixel representation of 1 or 2 tiles
 
                                 new_x = grid_x + (nX * pushDist) # original plus the new position
                                 new_y = grid_y + (nY * pushDist)
 
-                                if 0 <= new_x < width and 0 <= new_y < height and not wObj[new_x // 50][new_y // 50]:
+                                if 0 <= new_x < width and 0 <= new_y < height and not wObj[new_x // wrdDiv][new_y // wrdDiv]:
                                     enemy.x = new_x
                                     enemy.y = new_y
                                     enemy.rect.topleft = (enemy.x, enemy.y)
