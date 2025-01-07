@@ -38,6 +38,11 @@ def updateBoard():
         # Calculate the new positions considering the camera offset
         player_rect = player.rect.move(-camera_x, -camera_y)  # Apply the camera offset here
         screen.blit(player.surface, player_rect.topleft)
+
+    for enemy in EnemyObjs:
+        # Calculate the new positions considering the camera offset
+        enemy_rect = enemy.rect.move(-camera_x, -camera_y)  # Apply the camera offset here
+        screen.blit(enemy.surface, enemy_rect.topleft)
     
     scoreText = "Turn: " + str(curTurn)
     score_surf = font.render(scoreText, False, (254, 254, 254))
@@ -45,7 +50,6 @@ def updateBoard():
     screen.blit(score_surf, score_rect)
 
 PlayerObjs = []
-
 class playObj:
     def __init__(self, x, y):
         self.x = x
@@ -54,7 +58,16 @@ class playObj:
         self.surface.fill('Orange')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
 
-def updateWorld():
+EnemyObjs = []
+class enemObj:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.surface = pygame.Surface((25, 25))
+        self.surface.fill('Purple')
+        self.rect = self.surface.get_rect(topleft=(self.x, self.y))
+
+def updateObjs():
     for i in range(wth):
         for j in range(hth):
             world[i][j] = 0 
@@ -65,14 +78,24 @@ def updateWorld():
         playY = player.rect.y // wD
         wObj[playX][playY] = player
 
+    for enemy in EnemyObjs:
+        enemX = enemy.rect.x // wD
+        enemY = enemy.rect.y // wD
+        wObj[enemX][enemY] = enemy
+
 
 def reset():
-    global PlayerObjs
-    PlayerObjs = []
+    global PlayerObjs, EnemyObjs
+    PlayerObjs, EnemyObjs = [], []
+
     PlayerObjs.append(playObj(400, 200))
     PlayerObjs.append(playObj(400, 300))
     PlayerObjs.append(playObj(400, 400))
-    updateWorld()
+
+    EnemyObjs.append(enemObj(600, 200))
+    EnemyObjs.append(enemObj(600, 300))
+    EnemyObjs.append(enemObj(600, 400))
+    updateObjs()
 
 dragging_player = None
 drag_offset_x = 0
