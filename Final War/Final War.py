@@ -1,6 +1,7 @@
 import pygame  # type: ignore
 import math
 import random
+from fractions import Fraction
 
 pygame.init()
 
@@ -8,17 +9,21 @@ width, height = 1000, 600
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption("Circle Game")
 
-ORANGE = (255, 165, 0)
+ORANGE = (230, 150, 0)
 PURPLE = (128, 0, 128)
 SHADOW_COLOR = (50, 50, 50, 100)
 
 class PlayObj:
-    def __init__(self, x, y, isPlay):
+    def __init__(self, x, y, isPlay, isLong):
         self.x = x
         self.y = y
+        self.maxHP = 100
+        self.curHP = self.maxHP
+        self.power = 25 if isLong else 22
         self.isPlay = isPlay
         self.inY = y
-        self.speed = 5 if self.isPlay else 3
+        self.speed = 3 if self.isPlay else 2
+        if not isLong: self.speed *= 2
         self.inRadius = 30
         self.radius = 30
         self.velocity_y = 0  
@@ -27,45 +32,44 @@ class PlayObj:
         self.jump_strength = -8 
         self.max_jump_height = 10
         self.rot = 0 if self.isPlay else 180
-        self.endRot = -120
+        self.endRot = -130
         self.startRot = 90
-        self.sword_rot = 90
+        self.sword_rot = self.startRot
         self.block = False
         self.swinging = False 
-        self.swing_speed = 5 
+        self.swing_speed = 1.5 if isLong else 5
         self.swing_cooldown = False
         self.cooldown = 0
-        self.swordSize = 80
+        self.swordNorm = 180 if isLong else 80
+        self.swordSize = self.swordNorm # 80
         self.jab= False
         self.rotation_speed = 5
-        self.kbv_x = 0  # Horizontal knockback velocity
+        self.kbv_x = 0
         self.kbv_y = 0
         self.beenHit = False
-
-        # sword coordinates
+        self.stunned = 0
+        self.stunStart = 0
         self.tX = 0
         self.tY = 0
         self.bX = 0
         self.bY = 0
-
-    def update(self, keys, enemy, right_click, left_click):
-
-        move_x, move_y = 0, 0
-
+    
+    def knockBack(self):
         if self.beenHit:
             self.x += self.kbv_x
             self.y += self.kbv_y
-
-            # Gradual decay of knockback velocity (slower than 0.9 for a more noticeable knockback)
-            self.kbv_x *= 0.95  # Reduce the decay rate for smoother knockback
+            self.kbv_x *= 0.95
             self.kbv_y *= 0.95
 
-            # Stop knockback once velocities are small enough
             if abs(self.kbv_x) < 0.1 and abs(self.kbv_y) < 0.1:
                 self.kbv_x = 0
                 self.kbv_y = 0
                 self.beenHit = False
 
+    def update(self, keys, enemy, right_click, left_click):
+
+        move_x, move_y = 0, 0
+        self.knockBack()
 
         if not self.is_jumping and not keys[pygame.K_SPACE]:
             if keys[pygame.K_w]:
@@ -109,61 +113,118 @@ class PlayObj:
         self.x = max(self.radius, min(self.x, width - self.radius))
         self.y = max(self.radius, min(self.y, height - self.radius))
 
-        self.block = False
-        # Handle sword swinging
-        if left_click and not right_click and not self.swinging and not self.swing_cooldown and not self.jab:
-            self.swinging = True
-            self.sword_rot = self.startRot  # Start swing from right to left (90 degrees left)
-            self.swordSize = 80
-        elif left_click and right_click and self.swinging and not self.jab:
-            self.block = True
-        elif right_click and not self.swinging and not self.swing_cooldown and not self.jab:
-            self.sword_rot = 0
-            self.swordSize = 60
-            if left_click and not self.jab:
-                self.jab = True
-        elif not self.swinging and not self.jab:
-            self.sword_rot = self.startRot
-            self.swordSize = 80
+        # The button presses to do things when nothing going on
+        if self.block and not (left_click and right_click):
             self.block = False
+        if not self.block and not self.swinging and not self.swing_cooldown and not self.jab:
+            if left_click:
+                self.swinging = True
+                self.sword_rot = self.startRot
+                self.swordSize = self.swordNorm
+            elif right_click:
+                self.jab = True
+            else:
+                self.block = False
+                self.jab = False
+                self.sword_rot = self.startRot
+                self.swordSize = self.swordNorm
+        elif left_click and right_click:
+            self.block = True
+        elif not right_click and not (self.swinging or self.swing_cooldown):
+            self.block = False
+            self.sword_rot = self.startRot
+            self.swordSize = self.swordNorm
+        
 
         self.doMove()
 
     def updateEnemy(self):
+        self.knockBack()
+        distPla = 75
+        if self.curHP < (self.maxHP // 2):
+            distPla *= 2
+        distPla = max(distPla, player.swordSize)
         if player and not player.is_jumping:
-            # Calculate angle to player
             angle_to_enemy = math.atan2(player.y - self.y, player.x - self.x)
-            
-            # Smooth rotation: Interpolate between current rotation and target rotation
             target_rot = math.degrees(angle_to_enemy)
-            delta_rot = (target_rot - self.rot) % 360  # Ensure delta is between 0-360
+            delta_rot = (target_rot - self.rot) % 360
             if delta_rot > 180:
-                delta_rot -= 360  # Make rotation wrap around (-180 to 180 range)
-            
-            # Apply a small smooth rotation adjustment
+                delta_rot -= 360
             self.rot += max(-self.rotation_speed, min(self.rotation_speed, delta_rot))
-
-        # Calculate distance to player
         dist_to_player = math.sqrt((self.x - player.x)**2 + (self.y - player.y)**2)
-        
-        # Adjust speed based on distance to the player (slow down when close)
-        if dist_to_player > 75:
+        if dist_to_player > distPla:
             move_x = self.speed * math.cos(math.radians(self.rot))
             move_y = self.speed * math.sin(math.radians(self.rot))
-
-            # Apply movement
             self.x += move_x
             self.y += move_y
+        self.x = max(self.radius, min(self.x, width - self.radius))
+        self.y = max(self.radius, min(self.y, height - self.radius))
+
+            
+        if not self.is_jumping:
+            self.inY = self.y
+        elif self.is_jumping:
+            self.y += self.velocity_y
+            self.velocity_y += self.gravity
+            if self.y >= self.inY:
+                self.y = self.inY 
+                self.is_jumping = False
+                self.velocity_y = 0 
+            if self.is_jumping:
+                self.radius = self.inRadius + abs(self.y - self.inY) // 3
+            else:
+                self.radius = 30
+
+        if self.block or self.jab:
+            self.cooldown -= 1
+            if self.cooldown <= 0:
+                self.block = False
+                self.jab = False
+                self.cooldown = 0
 
         # Check for sword swing initiation based on distance
-        if dist_to_player <= self.swordSize * 2 and not self.swinging and not self.swing_cooldown and not self.jab and not self.block:
-            if random.random() > .5:
-                self.block = True
-                self.cooldown = 120 
-            elif random.random() > .25:
-                self.jab = True
-            elif random.random() > 0.0:
-                self.swinging = True
+        if dist_to_player <= distPla * 2 and not self.swinging and not self.swing_cooldown and not self.is_jumping and self.cooldown <= 0:
+            if player.stunned:
+                if random.random() > 0.40:
+                    self.swinging = True
+                else:
+                    self.jab = True
+                    self.cooldown = 80 if random.random() > .5 else 30
+            elif player.block:
+                if 0.7 > random.random() > .45:
+                    self.inY = self.y
+                    self.is_jumping = True
+                    self.velocity_y = self.jump_strength
+                elif random.random() > 0.25:
+                    self.swinging = True
+                elif random.random() > 0:
+                    self.block = True
+                    self.cooldown = 100 if random.random() > .5 else 60
+                else:
+                    self.jab = True
+                    self.cooldown = 80 if random.random() > .5 else 30
+            elif player.jab or player.swinging:
+                if random.random() > 0.70:
+                    self.block = True
+                    self.cooldown = 120 if random.random() > .5 else 60
+                elif random.random() > .60:
+                    self.swinging = True
+                elif random.random() > .45:
+                    self.inY = self.y
+                    self.is_jumping = True
+                    self.velocity_y = self.jump_strength
+                elif random.random() > 30:
+                    self.jab = True
+                    self.cooldown = 80 if random.random() > .5 else 30
+            else:
+                if random.random() > 0.80:
+                    self.block = True
+                    self.cooldown = 120 if random.random() > .5 else 60
+                elif random.random() > .50:
+                    self.jab = True
+                    self.cooldown = 80 if random.random() > .5 else 30
+                elif random.random() > .20:
+                    self.swinging = True
 
         self.doMove()
 
@@ -172,41 +233,36 @@ class PlayObj:
         " combo attacks "
         
         if self.jab:
-            self.sword_rot = 0
-            if not self.swing_cooldown:
-                self.swordSize += self.swing_speed * 3 
-                if self.swordSize >= 130:
-                    self.swing_cooldown = True 
-            else:
-                self.swordSize -= self.swing_speed * 2
-                if self.swordSize <= 80:
-                    self.swing_cooldown = False 
-                    self.swordSize = 80
-                    self.jab = False
-                
+            if self.sword_rot != 0:
+                if self.sword_rot > 0:
+                    self.sword_rot -= 2 * self.swing_speed
+                elif self.sword_rot < 0:
+                    self.sword_rot += 2 * self.swing_speed
+
+                if abs(self.sword_rot) < 10:
+                    self.sword_rot = 0
+
+            self.swordSize = self.swordNorm
+            if player == self and not right_click:
+                self.jab = False
+
+
         elif self.swinging:
             if not self.swing_cooldown:
                 self.sword_rot -= self.swing_speed * 3
                 if self.sword_rot <= self.endRot:
-                    if not left_click:
-                        self.sword_rot = self.sword_rot
-                        self.swing_cooldown = True
-                    else:
-                        self.sword_rot = self.endRot
+                    self.sword_rot = self.sword_rot
+                    self.swing_cooldown = True
             elif self.swing_cooldown:
-                self.sword_rot += self.swing_speed * 1.5
-                self.swordSize = 60
+                self.sword_rot += self.swing_speed * 1.75
+                self.swordSize = int(self.swordNorm * Fraction(3, 4))
                 if self.sword_rot >= self.startRot:
                     self.sword_rot = self.startRot
                     self.swing_cooldown = False
                     self.swinging = False
-                    self.swordSize = 80
-        elif self.block:
-            self.cooldown -= 1
-            if self.cooldown <= 0:
-                self.block = False
+                    self.swordSize = self.swordNorm
 
-
+    # check if you've been hit
     def checkHit(self):
         other = None
         if self.isPlay:
@@ -214,37 +270,58 @@ class PlayObj:
         else:
             other = player
 
-        dist = math.sqrt((self.x - other.tX)**2 + (self.y - other.tY)**2)
+        dist1 = math.sqrt((self.x - other.tX)**2 + (self.y - other.tY)**2)
+        dist2 = math.sqrt((self.x - ((other.tX + other.bX) //2))**2 + (self.y - ((other.tY + other.bY) //2))**2)
+        dist3 = math.sqrt((self.x - other.bX)**2 + (self.y - other.bY)**2)
+        dist4 = math.sqrt((self.x - other.x)**2 + (self.y - other.y)**2) # body collision
 
-
-
-        if dist < self.radius and not self.block and not self.beenHit:
-            print("Someone Was Hit")
+        if (dist1 < self.radius or dist2 < self.radius * 2 or dist3 < self.radius) and not self.block and not self.beenHit and not self.is_jumping and not other.block:
             self.beenHit = True
+            knockback_magnitude = 15
+            if other.jab:
+                self.curHP -= other.power // 2
+            else:
+                self.curHP -= other.power
+                knockback_magnitude *= 2
 
+            if self.curHP <= 0:
+                self.curHP = 0
             knockback_angle = math.atan2(self.y - other.y, self.x - other.x)
-            knockback_magnitude = 15  # You can adjust this for stronger/weaker knockbacks
+              # You can adjust this for stronger/weaker knockbacks
+            self.kbv_x = knockback_magnitude * math.cos(knockback_angle)
+            self.kbv_y = knockback_magnitude * math.sin(knockback_angle)
 
+        elif (dist1 < self.radius * 2 or dist2 < self.radius * 2 or dist3 < self.radius) and self.block and other.jab and not self.beenHit:
+            other.stunned = 900  # mili second
+            other.stunStart = pygame.time.get_ticks()
+
+        elif (dist4 < self.radius * 2.5) and other.is_jumping and self.block and not self.beenHit:
+            self.beenHit = True
+            self.curHP -= other.power // 4
+            if self.curHP <= 0:
+                self.curHP = 0
+            knockback_angle = math.atan2(self.y - other.y, self.x - other.x)
+            knockback_magnitude = 15 
             self.kbv_x = knockback_magnitude * math.cos(knockback_angle)
             self.kbv_y = knockback_magnitude * math.sin(knockback_angle)
 
 
 
     def draw(self, screen):
-
         colPLa = "Orange" if self.isPlay else "Purple"
-
+        colPLa2 = ORANGE if self.isPlay else PURPLE
         colPLa = "Green" if self.block else colPLa
-
         if self.beenHit:
             colPLa = "Red"
+        if self.stunned != 0:
+            colPLa = "Blue"
 
         # sword
         if not self.block:
             sword_length = self.swordSize
             sword_x = self.x + sword_length * math.cos(math.radians(self.sword_rot + self.rot))
             sword_y = self.y + sword_length * math.sin(math.radians(self.sword_rot + self.rot))  
-            pygame.draw.line(screen, "Black", (self.x, self.y), (sword_x, sword_y), 5)
+            pygame.draw.line(screen, (200,200,200), (self.x, self.y), (sword_x, sword_y), 5)
 
             self.bX = self.x
             self.bY = self.y
@@ -269,7 +346,7 @@ class PlayObj:
             self.tX = rotated_bX
             self.tY = rotated_bY
 
-            pygame.draw.line(screen, "Black", (rotated_tX, rotated_tY), (rotated_bX, rotated_bY), 5)
+            pygame.draw.line(screen, (200,200,200), (rotated_tX, rotated_tY), (rotated_bX, rotated_bY), 5)
 
         self.checkHit()
 
@@ -278,35 +355,54 @@ class PlayObj:
         pygame.draw.circle(shadow_surface, SHADOW_COLOR, (self.x, self.y), self.inRadius)
         screen.blit(shadow_surface, (self.x + 5 - self.inRadius, self.inY + 5 - self.inRadius))
         pygame.draw.circle(screen, colPLa, (self.x, self.y), self.radius)
-
-        # Draw eyes
-        oS = self.radius // 2  # Eye offset distance from center (can be adjusted)
+        oS = self.radius // 2 # Draw eyes
         eye_x = self.x + oS * math.cos(math.radians(self.rot))
         eye_y = self.y + oS * math.sin(math.radians(self.rot))
         pygame.draw.circle(screen, "White", (int(eye_x), int(eye_y)), self.radius // 3)
-
-        # right
-        eye_offset = self.radius
+        eye_offset = self.radius # right
         adjusted_rot = self.rot + 80
         eye_x = self.x + eye_offset * math.cos(math.radians(adjusted_rot))
         eye_y = self.y + eye_offset * math.sin(math.radians(adjusted_rot))
-        pygame.draw.circle(screen, colPLa , (int(eye_x), int(eye_y)), self.radius // 3)
-
-        # left 
-        eye_offset = self.radius
+        pygame.draw.circle(screen, colPLa2 , (int(eye_x), int(eye_y)), self.radius // 3)
+        eye_offset = self.radius # left 
         adjusted_rot = self.rot - 80
         eye_x = self.x + eye_offset * math.cos(math.radians(adjusted_rot))
         eye_y = self.y + eye_offset * math.sin(math.radians(adjusted_rot))
-        pygame.draw.circle(screen, colPLa , (int(eye_x), int(eye_y)), self.radius // 3)
+        pygame.draw.circle(screen, colPLa2 , (int(eye_x), int(eye_y)), self.radius // 3)
 
+def reset():
+    global player, enemy, start_time, timer_duration
 
-# Initialize player and enemy
-player = PlayObj(width // 2, height // 2, True)
-enemy = PlayObj(width - 100, height // 2, False)
+    # Reset player and enemy positions, health, and other stats
+    player = PlayObj(width // 2, height // 2, True, True if random.random() > 0.5 else False)
+    enemy = PlayObj(width - 100, height // 2, False, True if random.random() > 0.5 else False)
+
+    # Reset game timer
+    start_time = pygame.time.get_ticks()
+    timer_duration = 11000  # Set back to the initial duration
+
+def show_game_over_screen():
+    font = pygame.font.SysFont(None, 48)
+    game_over_text = font.render("GAME OVER", True, (255, 0, 0))
+    player_hp_text = font.render(f"Player HP: {player.curHP} / {player.maxHP}", True, (255, 255, 255))
+    enemy_hp_text = font.render(f"Enemy HP: {enemy.curHP} / {enemy.maxHP}", True, (255, 255, 255))
+
+    screen.fill((0, 0, 0))  # Black background for game over screen
+    screen.blit(game_over_text, (width // 2 - game_over_text.get_width() // 2, height // 4))
+    screen.blit(player_hp_text, (width // 2 - player_hp_text.get_width() // 2, height // 2 - 50))
+    screen.blit(enemy_hp_text, (width // 2 - enemy_hp_text.get_width() // 2, height // 2))
+
+    pygame.display.flip()
+
+player = PlayObj(width // 2, height // 2, True, True if random.random() > 0.5 else False)
+enemy = PlayObj(width - 100, height // 2, False, True if random.random() > 0.5 else False)
 running = True
 clock = pygame.time.Clock()
 left_click = False
 right_click = False  
+
+start_time = pygame.time.get_ticks()
+timer_duration = 11000  
 
 while running:
     for event in pygame.event.get():
@@ -322,13 +418,56 @@ while running:
                 left_click = False
             elif event.button == 3:
                 right_click = False
-    keys = pygame.key.get_pressed()
-    player.update(keys, enemy, right_click, left_click)
-    enemy.updateEnemy()
-    screen.fill((200, 200, 200))
-    player.draw(screen)
-    enemy.draw(screen)
-    pygame.display.flip()
+
+    elapsed_time = pygame.time.get_ticks() - start_time
+    remaining_time = max(0, timer_duration - elapsed_time)
+
+    if player.curHP <= 0 or enemy.curHP <= 0 or remaining_time <= 0:
+        show_game_over_screen()
+        pygame.time.wait(2000)
+        reset()
+    else:
+        keys = pygame.key.get_pressed()
+        if player.stunned == 0: 
+            player.update(keys, enemy, right_click, left_click)
+        else:
+            player.sword_rot = player.startRot
+            player.jab = False
+            player.swing_cooldown = False
+            player.swinging = False
+            if (pygame.time.get_ticks() - player.stunStart) > player.stunned:
+                player.stunned = 0
+                player.stunStart = 0
+
+        if enemy.stunned == 0:
+            enemy.updateEnemy()
+        else:
+            enemy.sword_rot = enemy.startRot
+            enemy.jab = False
+            enemy.swing_cooldown = False
+            enemy.swinging = False
+            enemy.cooldown = 0
+            if (pygame.time.get_ticks() - enemy.stunStart) > enemy.stunned:
+                enemy.stunned = 0
+                enemy.stunStart = 0
+
+        screen.fill((0, 0, 40))
+        font = pygame.font.SysFont(None, 200)
+        timer_text = font.render(f"{remaining_time // 1000}", True, (255, 255, 255))
+
+        screen.blit(timer_text, (width // 2 - 50, height // 2 - 50))
+        if enemy.is_jumping:
+            player.draw(screen)
+            enemy.draw(screen)
+        else:
+            enemy.draw(screen)
+            player.draw(screen)
+
+        
+
+        pygame.display.flip()
+    
+    
     clock.tick(60)
 
 pygame.quit()
