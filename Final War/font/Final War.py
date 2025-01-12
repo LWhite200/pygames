@@ -5,8 +5,8 @@ import random
 pygame.init()
 
 width, height = 1200, 700
-wth, hth = int((width // 100) * 3), int((height // 100) * 4)
-wrdDiv = 18 # translate phyiscal location to world grid
+wth, hth = int((width // 100) * 4), int((height // 100) * 4)
+wrdDiv = 20 # translate phyiscal location to world grid
 tileSize = wrdDiv - 2
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Final War')
@@ -115,7 +115,6 @@ def updateBoard():
 
 sideMenu = [False, None]
 buttonMoveUp = False
-lastUsedButton = 0
 
 
 def displayBoard():
@@ -128,13 +127,12 @@ def displayBoard():
             color = (10, 50, 255) if world[i][j] == 0 else (255, 240, 0) if world[i][j] == 1 else "Green" if world[i][j] == 2 else "Magenta"
             pygame.draw.rect(screen, color, pygame.Rect(i * wrdDiv, j * wrdDiv, tileSize, tileSize))
 
-
     # Player Display
     for player in PlayerObjs:
-        player.rect.topleft = (player.x * wrdDiv, player.y * wrdDiv)
-        screen.blit(player.surface, player.rect)
-        player.rect.topleft = (player.x, player.y)
-        
+        player.canAttack = False
+
+        screen.blit((player.x * wrdDiv, player.y * wrdDiv), player.rect)
+
     # Button and button of screen
 
     textArea = pygame.Surface((width, height // 5), pygame.SRCALPHA)
@@ -153,17 +151,37 @@ def displayBoard():
     score_surf = font.render(scoreText, False, (254, 254, 254))
     screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 35))
 
+    idx = 0
+    moveUp = False
     global buttonMoveUp
-    button = buttonObjs[lastUsedButton]
+    for button in buttonObjs:
+        if not button.onForever:
+            if sideMenu[0]:
+                button.rect.x = sideMenu[1].rect.x + 15
+                button.rect.y = sideMenu[1].rect.y + (idx * 35) + 10
+                button.isOn = True
+                idx += 1
 
-    if sideMenu[0]:
-        button.rect.x = (sideMenu[1].rect.x * wrdDiv) + 10
-        button.rect.y = (sideMenu[1].rect.y * wrdDiv) + 10
-        button.isOn = True
-        pygame.draw.rect(screen, "Grey", button.rect)
-        score_surf = font.render(button.name, False, (0, 0, 0))
-        screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))
+                if button.rect.y >= height:
+                    moveUp = True
 
+                if buttonMoveUp:
+                    button.rect.y -= 150
+
+
+                pygame.draw.rect(screen, "Grey", button.rect)
+                score_surf = font.render(button.name, False, (0, 0, 0))
+                screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))
+        else:
+            # Draw the button background
+            pygame.draw.rect(screen, "Grey", button.rect)
+            # Draw the button text
+            score_surf = font.render(button.name, False, (0, 0, 0))
+            screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))  
+    if moveUp: 
+        buttonMoveUp = True 
+    else: 
+        buttonMoveUp = False  
         
 def closeSideMenu():
     sideMenu[0], sideMenu[1] = False, None
@@ -179,7 +197,10 @@ def reset():
     curTurn = 0
     toDisplayText = "The Game Has Begun"
     PlayerObjs = []
-    PlayerObjs.append(playObj(wth // 2,hth // 2, "norm"))
+
+    for i in range(-2, 3):
+        PlayerObjs.append(playObj( int(width * Fraction(1, 4)) + i, (height // 2) + (i * 2), "norm"))
+
     updateBoard()
 
 # ------------------------------------------------------------------------------------------------------------
@@ -240,27 +261,32 @@ while True:
                             reset()
                         closeSideMenu()
                 for player in PlayerObjs:
-                    if pygame.Rect(player.x * wrdDiv, player.y * wrdDiv, tileSize, tileSize).collidepoint(event.pos) and not player.hasMoved and player != draPla:
+                    if player.rect.collidepoint(event.pos) and not player.hasMoved and player != draPla:
                         draPla = player
                         oriX, oriY = player.x, player.y
-                        dOX = player.rect.x - event.pos[0] // wrdDiv
-                        dOY= player.rect.y - event.pos[1] // wrdDiv
+                        dOX = player.rect.x - event.pos[0]
+                        dOY= player.rect.y - event.pos[1]
                         break
                 closeSideMenu()
             elif event.button == 3:  
                 for player in PlayerObjs:
-                    if pygame.Rect(player.x * wrdDiv, player.y * wrdDiv, tileSize, tileSize).collidepoint(event.pos) and not player.doneAttack:
+                    if player.rect.collidepoint(event.pos) and not player.doneAttack:
                         sideMenu[0], sideMenu[1] = True, player
                     else:
                         player.isAttacking = False
 
+
+        # -------------------------------------------------------------------------
+        # Dragging all done here
+
+        # a true fence is able to be stepped on
+        
+
+        # -----------------------------------------------
+
         if event.type == pygame.MOUSEMOTION: 
             if draPla:
                 mouse_x, mouse_y = event.pos
-
-                mouse_x = mouse_x // wrdDiv
-                mouse_y = mouse_y // wrdDiv
-                
                 new_x = mouse_x + dOX
                 new_y = mouse_y + dOY
                 new_x = new_x
@@ -270,10 +296,7 @@ while True:
                     new_x = oriX + max_dist if new_x > oriX else oriX - max_dist
                 if abs(new_y - oriY) > max_dist:
                     new_y = oriY + max_dist if new_y > oriY else oriY - max_dist
-                # draPla.rect.topleft = (new_x, new_y)
-                if new_x in range(0, wth) and new_y in range(0, hth):
-                    draPla.x, draPla.y = new_x, new_y
-                
+                draPla.rect.topleft = (new_x, new_y)
 
                 q = deque()
                 visit = set()
@@ -299,13 +322,12 @@ while True:
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1 and draPla:
                 if draPla:
-                    mouse_x, mouse_y = event.pos
-                    new_x = mouse_x // wrdDiv
-                    new_y = mouse_y // wrdDiv
+                    new_x = draPla.rect.x
+                    new_y = draPla.rect.y
 
                     goodSpot = True
 
-                    if world[new_x][new_y] == 3:
+                    if (draPla.x != new_x or draPla.y != new_y) and goodSpot and world[new_x][new_y] == 3:
                         draPla.hasMoved = True
                         draPla.x = new_x
                         draPla.y = new_y
