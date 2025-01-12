@@ -5,9 +5,10 @@ import random
 pygame.init()
 
 width, height = 1200, 700
-wth, hth = int((width // 100) * 3), int((height // 100) * 4)
-wrdDiv = 18 # translate phyiscal location to world grid
+wth, hth = int((width // 100) * 4), int((height // 100) * 3)
+wrdDiv = 20 # translate phyiscal location to world grid
 tileSize = wrdDiv - 2
+objSize = tileSize - 2
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Final War')
 clock = pygame.time.Clock()
@@ -27,26 +28,22 @@ background_rect = background.get_rect(center=(width // 2, height // 2))
 # ------------------------------------------------------
 # ------------------------------------------------------
 
-buttonObjs = []
+buttons = []
 class Buttons:
-    def __init__(self, x, y, name, onForever):
+    def __init__(self, x, y, name):
         self.x = x
         self.y = y
         self.name = name
-        self.onForever = onForever
-        self.isOn = onForever
-        # All sideMenu will have onForever be false
         self.surface = pygame.Surface((100, 30))
         self.surface.fill('White')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
 
-buttonObjs.append(Buttons(0, 0, "Attack", False))
-buttonObjs.append(Buttons(0, 0, "Defend", False))
-buttonObjs.append(Buttons(0, 0, "Push", False))
-# buttonObjs.append(Buttons(0, 0, "Pull", False))
-buttonObjs.append(Buttons(0, 0, "Build", False))
-buttonObjs.append(Buttons(0, 0, "Fix Wall", False))
-buttonObjs.append(Buttons(900, 550, "Reset", True)) # always appear
+buttons.append(Buttons(0, 0, "Attack"))
+buttons.append(Buttons(0, 0, "Defend"))
+buttons.append(Buttons(0, 0, "Push / Pull"))
+buttons.append(Buttons(0, 0, "Build / Fix"))
+buttons.append(Buttons(0, 0, "Stats"))
+buttons.append(Buttons(900, 550, "Reset")) # always appear
 
 PlayerObjs = []
 class playObj:
@@ -54,7 +51,7 @@ class playObj:
         self.x = x
         self.y = y
         self.type = type
-        self.surface = pygame.Surface((tileSize, tileSize))
+        self.surface = pygame.Surface((objSize, objSize))
         self.surface.fill('Orange')
         self.rect = self.surface.get_rect(topleft=(self.x, self.y))
         self.hasMoved = False
@@ -65,7 +62,7 @@ class playObj:
         self.maxHP = 0
         self.curHP = 0
         self.power = 0
-        self.moveDistance = 1
+        self.maxDist = 2
         self.getStats(type)
     
     def getStats(self, type):
@@ -134,8 +131,6 @@ def displayBoard():
         player.rect.topleft = (player.x * wrdDiv, player.y * wrdDiv)
         screen.blit(player.surface, player.rect)
         player.rect.topleft = (player.x, player.y)
-        
-    # Button and button of screen
 
     textArea = pygame.Surface((width, height // 5), pygame.SRCALPHA)
     textArea.fill("Black")  
@@ -153,23 +148,46 @@ def displayBoard():
     score_surf = font.render(scoreText, False, (254, 254, 254))
     screen.blit(score_surf, (width - (width // 2.5) + 5, height - (height // 6) + 35))
 
+    score_surf = font.render("Turn  " + str(curTurn), False, (254, 254, 254))
+    screen.blit(score_surf, (width // 2 - 50, height - (height // 6) + 35))
+
+
+    score_surf = font.render("Resources  " + str(curTurn), False, (254, 254, 254))
+    screen.blit(score_surf, (10, height - (height // 6)))
+
+    score_surf = font.render("Population  " + str(curTurn), False, (254, 254, 254))
+    screen.blit(score_surf, (10, height - (height // 6) + 40))
+
+    score_surf = font.render("Active  " + str(curTurn), False, (254, 254, 254))
+    screen.blit(score_surf, (10, height - (height // 6) + 80))
+
     global buttonMoveUp
-    button = buttonObjs[lastUsedButton]
+    b1 = lastUsedButton - 1 if lastUsedButton - 1 >= 0 else len(buttons) - 1
+    b2 = buttons[lastUsedButton]
+    b3 = lastUsedButton + 1 if lastUsedButton + 1 <= len(buttons) - 1 else 0
+    btns = [buttons[b1], b2, buttons[b3]]
 
     if sideMenu[0]:
-        button.rect.x = (sideMenu[1].rect.x * wrdDiv) + 10
-        button.rect.y = (sideMenu[1].rect.y * wrdDiv) + 10
-        button.isOn = True
-        pygame.draw.rect(screen, "Grey", button.rect)
-        score_surf = font.render(button.name, False, (0, 0, 0))
-        screen.blit(score_surf, (button.rect.x + 10, button.rect.y + 10))
+        for i, button in enumerate(btns):
+            button.rect.x = ((sideMenu[1].rect.x * wrdDiv) + 10) + 100 * i 
+            button.rect.y = (sideMenu[1].rect.y * wrdDiv) + 10 if i == 1 else (sideMenu[1].rect.y * wrdDiv) + 25
+            button_font, sizeT = font, 10
+            color = (120, 120, 120) if i != 1 else "Grey"
+            if i == 1:
+                button.rect.width = 100
+                button.rect.height = 30
+            else:
+                button.rect.width = 80
+                button.rect.height = 20
+                button_font = pygame.font.Font('font/Pixeltype.ttf', 25)
+                sizeT = 5
+            button.isOn = True
+            pygame.draw.rect(screen, color, button.rect)
+            score_surf = button_font.render(button.name, False, (0, 0, 0))
+            screen.blit(score_surf, (button.rect.x + sizeT, button.rect.y + sizeT))
 
-        
 def closeSideMenu():
     sideMenu[0], sideMenu[1] = False, None
-    for button in buttonObjs:
-            if not button.onForever:
-                button.isOn = False
 
 def reset():
     global PlayerObjs, world, curTurn, toDisplayText, gameDone, showAttackScreen, endWho
@@ -181,6 +199,28 @@ def reset():
     PlayerObjs = []
     PlayerObjs.append(playObj(wth // 2,hth // 2, "norm"))
     updateBoard()
+
+def availableSpaces(x, y, player):
+    q = deque()
+    visit = set()
+    dir = [(0, 1), (1, 0), (0, -1), (-1,0), (-1, -1), (-1, 1), (1, -1), (1,1)]
+    q = deque([(x, y)])
+    visit = set([(x, y)])
+    count = 0
+    while q and count < player.maxDist:
+        count += 1
+        for _ in range(len(q)):
+            x, y = q.popleft()
+
+            for dx, dy in dir:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < wth and 0 <= ny < hth and (nx, ny) not in visit:
+                    q.append((nx, ny))
+                    visit.add((nx, ny))
+                    world[nx][ny] = 3
+
+
+
 
 # ------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------
@@ -203,17 +243,18 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
         if event.type == pygame.KEYDOWN:
-            sideMenu[0], sideMenu[1] = False, None
+            if event.key == pygame.K_SPACE:
+                sideMenu[0], sideMenu[1] = False, None
 
-            for player in PlayerObjs:
-                player.hasMoved = False
-                player.doneAttack = False
-                player.isAttacking = False
-                player.inRange = False  # Reset the range flag
+                for player in PlayerObjs:
+                    player.hasMoved = False
+                    player.doneAttack = False
+                    player.isAttacking = False
+                    player.inRange = False  # Reset the range flag
 
-            playerAttacking = None
-            curTurn += 1
-            updateBoard()
+                playerAttacking = None
+                curTurn += 1
+                updateBoard()
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             
@@ -222,8 +263,13 @@ while True:
                     if playerAttacking:
                         playerAttacking.isAttacking = False
                         playerAttacking = None
-                for button in buttonObjs:
-                    if button.rect.collidepoint(event.pos) and button.isOn:
+                if sideMenu[0]:
+                    b1 = lastUsedButton - 1 if lastUsedButton - 1 >= 0 else len(buttons) - 1
+                    b3 = lastUsedButton + 1 if lastUsedButton + 1 <= len(buttons) - 1 else 0
+
+                    button = buttons[lastUsedButton]
+
+                    if button.rect.collidepoint(event.pos):
                         if button.name == "Attack":
                             toDisplayText = "Attack clicked!"
                         elif button.name == "Build":
@@ -239,6 +285,14 @@ while True:
                         elif button.name == "Reset":
                             reset()
                         closeSideMenu()
+                    elif buttons[b1].rect.collidepoint(event.pos):
+                        lastUsedButton -= 1
+                        if lastUsedButton < 0: lastUsedButton = len(buttons) - 1
+                    elif buttons[b3].rect.collidepoint(event.pos):
+                        lastUsedButton += 1
+                        if lastUsedButton > len(buttons) - 1: lastUsedButton = 0
+                    else: closeSideMenu() 
+                        
                 for player in PlayerObjs:
                     if pygame.Rect(player.x * wrdDiv, player.y * wrdDiv, tileSize, tileSize).collidepoint(event.pos) and not player.hasMoved and player != draPla:
                         draPla = player
@@ -246,7 +300,6 @@ while True:
                         dOX = player.rect.x - event.pos[0] // wrdDiv
                         dOY= player.rect.y - event.pos[1] // wrdDiv
                         break
-                closeSideMenu()
             elif event.button == 3:  
                 for player in PlayerObjs:
                     if pygame.Rect(player.x * wrdDiv, player.y * wrdDiv, tileSize, tileSize).collidepoint(event.pos) and not player.doneAttack:
@@ -265,7 +318,7 @@ while True:
                 new_y = mouse_y + dOY
                 new_x = new_x
                 new_y = new_y
-                max_dist = draPla.moveDistance  # Movement distance limit
+                max_dist = draPla.maxDist  # Movement distance limit
                 if abs(new_x - oriX) > max_dist:
                     new_x = oriX + max_dist if new_x > oriX else oriX - max_dist
                 if abs(new_y - oriY) > max_dist:
@@ -274,27 +327,7 @@ while True:
                 if new_x in range(0, wth) and new_y in range(0, hth):
                     draPla.x, draPla.y = new_x, new_y
                 
-
-                q = deque()
-                visit = set()
-                dir = [(0, 1), (1, 0), (0, -1), (-1,0), (-1, -1), (-1, 1), (1, -1), (1,1)]
-                dirTwo = [(-1, -1), (-1, 1), (1, -1), (1,1)] # ignore for now
-                q = deque([(oriX, oriY)])
-                visit = set([(oriX, oriY)])
-                count = 0
-                while q and count < max_dist:
-                    count += 1
-
-                    for _ in range(len(q)):
-                        x, y = q.popleft()
-
-                        for dx, dy in dir:
-                            nx, ny = x + dx, y + dy
-                            if 0 <= nx < wth and 0 <= ny < hth and (nx, ny) not in visit:
-                                q.append((nx, ny))
-                                visit.add((nx, ny))
-                                world[nx][ny] = 3
-
+                availableSpaces(oriX, oriY, draPla)
 
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1 and draPla:
@@ -305,7 +338,7 @@ while True:
 
                     goodSpot = True
 
-                    if world[new_x][new_y] == 3:
+                    if new_x in range(0, wth) and new_y in range(0, hth) and world[new_x][new_y] == 3:
                         draPla.hasMoved = True
                         draPla.x = new_x
                         draPla.y = new_y
