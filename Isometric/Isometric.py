@@ -1,6 +1,8 @@
+import worldMap
 import pygame
 import sys
-import random
+
+
 
 # Initialize Pygame
 pygame.init()
@@ -23,10 +25,13 @@ YELLOW = (255, 255, 0)
 
 # Grid settings
 TILE_WIDTH, TILE_HEIGHT = 64, 32
-GRID_WIDTH, GRID_HEIGHT = 10, 10
+GRID_WIDTH, GRID_HEIGHT = 0, 0
+
+# Define the grid
+grid = []
 
 # Player position
-player_pos = [0, 0]
+player_pos = [1, 1]
 player_health = 100
 player_score = 0
 
@@ -35,10 +40,6 @@ camera_offset = [0, 0]
 
 # Zoom level
 zoom_level = 1.0
-
-# Obstacles and collectibles
-obstacles = [(2, 2), (3, 3), (4, 4)]
-collectibles = [(5, 5), (6, 6), (7, 7)]
 
 # Day/Night cycle
 day_time = 0
@@ -49,6 +50,9 @@ def iso_to_screen(x, y):
     screen_x = (x - y) * (TILE_WIDTH // 2) * zoom_level + SCREEN_WIDTH // 2 + camera_offset[0]
     screen_y = (x + y) * (TILE_HEIGHT // 2) * zoom_level + SCREEN_HEIGHT // 4 + camera_offset[1]
     return screen_x, screen_y
+
+
+
 
 def draw_tile(x, y, color):
     """Draw a single isometric tile with shading."""
@@ -64,16 +68,83 @@ def draw_tile(x, y, color):
     # Draw a darker border for depth
     pygame.draw.polygon(screen, DARK_GREEN, points, 2)
 
+
+
+
+
+def draw_wall(x, y):
+    """Draw an isometric wall with three visible faces (top and two sides)."""
+    screen_x, screen_y = iso_to_screen(x, y)
+    wall_height = TILE_HEIGHT * zoom_level
+
+    cenY = screen_y - wall_height // 2
+
+    # Wall left
+    left_face_points = [
+        (screen_x - TILE_WIDTH // 2 * zoom_level,    cenY),
+        (screen_x - TILE_WIDTH // 2 * zoom_level,    cenY + wall_height // 2),
+        (screen_x,                                   cenY + wall_height),
+        (screen_x,                                   cenY + wall_height // 2)
+    ]
+    pygame.draw.polygon(screen, (30, 90, 30), left_face_points) 
+    pygame.draw.polygon(screen, BLACK, left_face_points, 2)     
+
+    # Wall right
+    right_face_points = [
+        (screen_x + TILE_WIDTH // 2 * zoom_level,      cenY),
+        (screen_x + TILE_WIDTH // 2 * zoom_level,      cenY + wall_height // 2),
+        (screen_x,                                     cenY + wall_height),
+        (screen_x,                                     cenY + wall_height // 2)
+    ]
+    pygame.draw.polygon(screen, (20, 70, 20), right_face_points)  
+    pygame.draw.polygon(screen, BLACK, right_face_points, 2)     
+
+    # Wall top face
+    top_face_points = [
+        (screen_x - TILE_WIDTH // 2 * zoom_level, screen_y - wall_height // 2),
+        (screen_x, screen_y - wall_height),
+        (screen_x + TILE_WIDTH // 2 * zoom_level, screen_y - wall_height // 2),
+        (screen_x, screen_y)
+    ]
+    pygame.draw.polygon(screen, DARK_GREEN, top_face_points)  
+    pygame.draw.polygon(screen, BLACK, top_face_points, 2)   
+
+
+
+    
+
+
+
+
+
 def draw_grid():
-    """Draw the isometric grid with shaded tiles."""
+    """Draw the isometric grid with shaded tiles and walls."""
+
+    pX, pY = player_pos[0], player_pos[1]
+    doNot = []
+
     for x in range(GRID_WIDTH):
         for y in range(GRID_HEIGHT):
-            # Alternate tile colors for a checkerboard effect
-            if (x + y) % 2 == 0:
-                tile_color = LIGHT_GREEN
-            else:
-                tile_color = GREEN
-            draw_tile(x, y, tile_color)
+            if grid[x][y] == 1:  # Floor tile
+                if (x + y) % 2 == 0:
+                    tile_color = LIGHT_GREEN
+                else:
+                    tile_color = GREEN
+                draw_tile(x, y, tile_color)
+            elif grid[x][y] == 2:  # Wall
+                doNot.append((x, y))
+
+    return doNot
+
+
+def draw_infront(doNot):
+    """Draw the isometric grid with shaded tiles and walls."""
+
+    pX, pY = player_pos[0], player_pos[1]
+
+    for x, y in doNot:
+        if grid[x][y] == 2:  # Wall
+            draw_wall(x, y)
 
 def draw_player():
     """Draw the player with a shadow and a more detailed appearance."""
@@ -94,18 +165,6 @@ def draw_player():
     # Draw player
     pygame.draw.circle(screen, BLUE, (screen_x, screen_y), 10 * zoom_level)
 
-def draw_obstacles():
-    """Draw obstacles on the grid."""
-    for obstacle in obstacles:
-        screen_x, screen_y = iso_to_screen(obstacle[0], obstacle[1])
-        pygame.draw.rect(screen, RED, (screen_x - 10 * zoom_level, screen_y - 10 * zoom_level, 20 * zoom_level, 20 * zoom_level))
-
-def draw_collectibles():
-    """Draw collectibles on the grid."""
-    for collectible in collectibles:
-        screen_x, screen_y = iso_to_screen(collectible[0], collectible[1])
-        pygame.draw.circle(screen, YELLOW, (screen_x, screen_y), 5 * zoom_level)
-
 def draw_ui():
     """Draw the UI elements."""
     font = pygame.font.Font(None, 36)
@@ -120,10 +179,22 @@ def draw_game_over():
     game_over_text = font.render("Game Over", True, RED)
     screen.blit(game_over_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50))
 
+
+
+
 def main():
-    global player_pos, player_health, player_score, camera_offset, zoom_level, day_time
+    global player_pos, player_health, player_score, camera_offset, zoom_level, day_time, grid, GRID_WIDTH, GRID_HEIGHT
 
     clock = pygame.time.Clock()
+    worldMap.main()
+ 
+
+    gridName = "warpTest"
+    warpedFrom = 22
+    grid = worldMap.getArea("warpTest")   # not working
+    GRID_WIDTH, GRID_HEIGHT = len(grid), len(grid[0])
+    sx,sy = worldMap.getPosition("warpTest", warpedFrom)
+    player_pos = [sx, sy]
 
     while True:
         for event in pygame.event.get():
@@ -134,18 +205,28 @@ def main():
             # Handle player movement
             if event.type == pygame.KEYDOWN:
                 new_pos = player_pos.copy()
+                if event.key == pygame.K_RIGHT:
+                    new_pos[0] += 1
+                if event.key == pygame.K_LEFT:
+                    new_pos[0] -= 1
                 if event.key == pygame.K_UP:
                     new_pos[1] -= 1
                 if event.key == pygame.K_DOWN:
                     new_pos[1] += 1
-                if event.key == pygame.K_LEFT:
-                    new_pos[0] -= 1
-                if event.key == pygame.K_RIGHT:
-                    new_pos[0] += 1
 
-                # Check if new position is within bounds and not an obstacle
-                if 0 <= new_pos[0] < GRID_WIDTH and 0 <= new_pos[1] < GRID_HEIGHT and (new_pos[0], new_pos[1]) not in obstacles:
+                # Check if new position is within bounds and not a wall
+                if 0 <= new_pos[0] < GRID_WIDTH and 0 <= new_pos[1] < GRID_HEIGHT and grid[new_pos[0]][new_pos[1]] != 2:
                     player_pos = new_pos
+                    warpedFrom = -1
+                
+                # All the warping logic
+                if 0 <= new_pos[0] < GRID_WIDTH and 0 <= new_pos[1] < GRID_HEIGHT and grid[new_pos[0]][new_pos[1]] % 11 == 0 and grid[new_pos[0]][new_pos[1]] != warpedFrom:
+                    gridName, warpedFrom = worldMap.getNameWarp(gridName, grid[new_pos[0]][new_pos[1]])
+                    grid = worldMap.getArea(gridName)
+                    GRID_WIDTH, GRID_HEIGHT = len(grid), len(grid[0])
+                    sx,sy = worldMap.getPosition(gridName, warpedFrom)
+                    player_pos = [sx, sy]
+
 
             # Handle zoom
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -159,12 +240,6 @@ def main():
         camera_offset[0] += (SCREEN_WIDTH // 2 - screen_x) * 0.1
         camera_offset[1] += (SCREEN_HEIGHT // 4 - screen_y) * 0.1
 
-        # Check for collectibles
-        for collectible in collectibles[:]:
-            if (player_pos[0], player_pos[1]) == collectible:
-                collectibles.remove(collectible)
-                player_score += 10
-
         # Update day/night cycle
         day_time = (day_time + 1) % day_duration
         if day_time < day_duration // 2:
@@ -172,11 +247,10 @@ def main():
         else:
             screen.fill((135, 206, 250))  # Day
 
-        # Draw the grid, player, obstacles, and collectibles
-        draw_grid()
-        draw_obstacles()
-        draw_collectibles()
+        # Draw the grid, player, and UI
+        doNot = draw_grid()
         draw_player()
+        draw_infront(doNot)
         draw_ui()
 
         # Check for game over
