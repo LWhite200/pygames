@@ -20,9 +20,16 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 GREY = (169, 169, 169)
+BUTTON_COLOR = (100, 100, 100) 
+BUTTON_HOVER_COLOR =  (50, 50, 50)  
+button_width = 110
+button_height = 55
+
+sos = 10 # scale of stuff
 
 # Define fonts
-font = pygame.font.SysFont('Arial', 24)
+font = pygame.font.SysFont('Arial', 35)
+font2 = pygame.font.SysFont('Arial', sos *4)
 
 # Letter class (already defined by you)
 class letter:
@@ -38,12 +45,13 @@ class letter:
         self.accuracy = self.ranAccuracy()
         self.evasive = self.ranEvasive()
         self.luck = self.ranLuck()
+        self.isAttacking = False
 
     def ranName(self):
         return ''.join(random.choices(string.ascii_letters + string.digits, k=4))
 
     def ranColor(self):
-        colors = ["red", "orange", "yellow", "green", "blue", "purple", "black", "white", "grey", None]
+        colors = ["red", "orange", "yellow", "green", "blue", "purple", "white", "grey", None]
         color1 = random.choice(colors)
         color2 = random.choice(colors)
         while color1 == color2:
@@ -84,59 +92,25 @@ class letter:
 
 
 
-# Player and AI characters (Both will inherit from the letter class)
-class Player(letter):
-    def __init__(self):
-        super().__init__()
+def calculate_damage(attacker, defender):
+    base_damage = attacker.power
+    defense_factor = defender.defense / 100
+    mitigated_damage = base_damage * (1 - defense_factor)
+    random_factor = random.uniform(0.9, 1.1)
+    final_damage = mitigated_damage * random_factor
+    critical_chance = attacker.luck / 100
+    if random.random() < critical_chance:
+        final_damage *= 2
+        print("Critical hit!")
+    
+    return int(final_damage)
 
-    def attack(self, enemy):
-        damage = self.power - enemy.defense
-        if damage < 0:
-            damage = 0
-        enemy.take_damage(damage)
 
-    def defend(self):
-        self.defense += 10  # Increases defense when defending
 
-    def use_color1(self, enemy):
-        # For simplicity, using color1 as a healing move
-        healing = 20
-        self.hp += healing
-        if self.hp > 200:
-            self.hp = 200
-
-    def use_color2(self, enemy):
-        # For simplicity, use color2 as a random effect
-        self.speed += 5  # Temporarily increase speed
-
-# Enemy AI (Simple AI behavior)
-class Enemy(letter):
-    def __init__(self):
-        super().__init__()
-
-    def attack(self, player):
-        damage = self.power - player.defense
-        if damage < 10:
-            damage = 10
-        player.take_damage(damage)
-
-    def defend(self):
-        self.defense += 10
-
-    def use_color1(self, player):
-        healing = 20
-        self.hp += healing
-        if self.hp > 200:
-            self.hp = 200
-
-    def use_color2(self, player):
-        self.speed += 5
 
 # Create player and enemy
-player = Player()
-enemy = Enemy()
-
-
+player = letter()
+enemy = letter()
 
 
 
@@ -144,41 +118,72 @@ def game_loop():
     running = True
     userTurn = True
 
-    playX = 20
+    playX = 520
     enemX = 20
 
-    playY = 20
-    enemY = 100
+    playY = 500
+    enemY = 30
 
     clock = pygame.time.Clock()
+    buttonClicked = ""
+    buttonHeld = False
 
     while running:
         screen.fill(BLACK)
 
 
-        player_name_text = font.render(f"{player.name}", True, WHITE)
-        screen.blit(player_name_text, (playX, playY))
-        pygame.draw.rect(screen, GREY, (playX + 70, playY + 25, 50, 10)) 
-        pygame.draw.rect(screen, GREEN, (playX + 70, playY + 25, 50 * (player.hp / player.maxHP), 10))
-        if player.color1:
-            pygame.draw.rect(screen, color_mapping(player.color1), (playX + 70, playY, 20, 20)) 
-        if player.color2:
-            pygame.draw.rect(screen, color_mapping(player.color2), (playX + 100, playY, 20, 20))  
 
-        enemy_name_text = font.render(f"{enemy.name}", True, WHITE)
-        screen.blit(enemy_name_text, (enemX, enemY))
-        pygame.draw.rect(screen, GREY, (enemX + 70, enemY + 25, 50, 10))  
-        pygame.draw.rect(screen, GREEN, (enemX + 70, enemY + 25, 50 * (enemy.hp / enemy.maxHP), 10)) 
-        if enemy.color1:
-            pygame.draw.rect(screen, color_mapping(enemy.color1), (enemX + 70, enemY, 20, 20))  
-        if enemy.color2:
-            pygame.draw.rect(screen, color_mapping(enemy.color2), (enemX + 100, enemY, 20, 20))
+        # Turns determine
+        if not userTurn:
+            first, second = player, enemy
+            if enemy.speed > player.speed:
+                first, second = second, first
+                
+            damage = calculate_damage(first, second)
+            second.take_damage(damage)
+            print(f"{second.name} attacked for {damage} damage!")
+            if second.is_alive():
+                damage = calculate_damage(second, first)
+                first.take_damage(damage)
+                print(f"{first.name} attacked for {damage} damage!")
+            userTurn = True
+            buttonClicked = ""
+
+        # letter, types, hp display
+        for i in range(0, 2):
+            ltr = player if i != 0 else enemy
+            x = playX if i != 0 else enemX
+            y = playY if i != 0 else enemY
+            ltr_name = font2.render(f"{ltr.name}", True, WHITE)
+            screen.blit(ltr_name, (x, y))
+            pygame.draw.rect(screen, GREY, (x + 90, y + 35, 150, sos)) 
+            pygame.draw.rect(screen, GREEN, (x + 90, y + 35, 150 * (ltr.hp / ltr.maxHP), sos))
+            if ltr.color1:
+                pygame.draw.rect(screen, color_mapping(ltr.color1), (x + 90, y + 10, 20, sos * 2)) 
+            if ltr.color2:
+                pygame.draw.rect(screen, color_mapping(ltr.color2), (x + 120, y + 10, 20, sos * 2)) 
 
 
-        options = ["Attack", "Use Color1", "Use Color2", "Defend"]
+        # button draw and detection
+        options = ["Attack", "Color1", "Color2", "Defend"]
         for i, option in enumerate(options):
+
+            button_rect = pygame.Rect( 20 + i * 120, playY + 5, button_width, button_height)
+            mouse_pos = pygame.mouse.get_pos()
+
+            if button_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, BUTTON_HOVER_COLOR, button_rect)
+                if pygame.mouse.get_pressed()[0] and buttonHeld == False: 
+                    buttonClicked = option
+                    buttonHeld = True
+                elif not pygame.mouse.get_pressed()[0]:
+                    buttonHeld = False
+            else:
+                pygame.draw.rect(screen, BUTTON_COLOR, button_rect)
+
+
             option_text = font.render(option, True, WHITE)
-            screen.blit(option_text, (WIDTH - 150, 100 + i * 40))
+            screen.blit(option_text, (27 + i * 120, playY + 10))
 
 
         for event in pygame.event.get():
@@ -186,22 +191,19 @@ def game_loop():
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
-                    player.attack(enemy)
-                    userTurn = False
+                    buttonClicked = "Attack"
                 elif event.key == pygame.K_2:
-                    player.use_color1(enemy)
-                    userTurn = False
+                    buttonClicked = "Color1"
                 elif event.key == pygame.K_3:
-                    player.use_color2(enemy)
-                    userTurn = False
+                    buttonClicked = "Color2"
                 elif event.key == pygame.K_4:
-                    player.defend()
-                    userTurn = False
+                    buttonClicked = "Defend"
 
+                
+        if buttonClicked != "":
+            userTurn = False
 
-        if enemy.is_alive() and not userTurn:
-            enemy.attack(player)
-            userTurn = True
+        
 
 
         if not player.is_alive():
