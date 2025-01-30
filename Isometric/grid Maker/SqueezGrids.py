@@ -55,7 +55,7 @@ def generate_master_grids(output_file, grids_folder):
 
 if __name__ == "__main__":
     # Folder containing grid files
-    grids_folder = "grids.txt"  # Ensure this folder exists and contains .txt files
+    grids_folder = "grids"  # Ensure this folder exists and contains .txt files
     # Output file
     output_file = "masterGrids.py"
     

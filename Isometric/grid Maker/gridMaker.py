@@ -113,13 +113,16 @@ def draw_grid():
             text_rect = text_surface.get_rect(center=(x * TILE_SIZE + TILE_SIZE // 2, y * TILE_SIZE + TILE_SIZE // 2))
             screen.blit(text_surface, text_rect)
 
-def handle_mouse_click():
+def handle_mouse_click(processed_tiles):
     global numWarps
     mouse_x, mouse_y = pygame.mouse.get_pos()
     grid_x = mouse_x // TILE_SIZE
     grid_y = mouse_y // TILE_SIZE
 
     if 0 <= grid_x < GRID_WIDTH and 0 <= grid_y < GRID_HEIGHT:
+        if (grid_x, grid_y) in processed_tiles:
+            return  # Skip if this tile has already been processed during this drag
+
         current_value = grid[grid_x][grid_y]
         
         # Case 1: If the value is divisible by 11 (11, 22, 33,...), reset it to 0
@@ -142,6 +145,9 @@ def handle_mouse_click():
                 if not any(num == grid[x][y] for x in range(GRID_WIDTH) for y in range(GRID_HEIGHT)):
                     grid[grid_x][grid_y] = num
                     break
+
+        # Mark this tile as processed
+        processed_tiles.add((grid_x, grid_y))
 
 def makeWarp():
     global numWarps
@@ -177,6 +183,8 @@ def main():
     global GRID_WIDTH, GRID_HEIGHT, grid
 
     clock = pygame.time.Clock()
+    mouse_dragging = False
+    processed_tiles = set()  # Tracks tiles processed during the current drag
 
     while True:
         for event in pygame.event.get():
@@ -186,9 +194,19 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
-                    handle_mouse_click()
+                    mouse_dragging = True
+                    processed_tiles.clear()  # Reset processed tiles at the start of a new drag
+                    handle_mouse_click(processed_tiles)
                 elif event.button == 3:  # Right click
                     makeWarp()
+
+            if event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:  # Left button released
+                    mouse_dragging = False
+
+            if event.type == pygame.MOUSEMOTION:
+                if mouse_dragging:
+                    handle_mouse_click(processed_tiles)
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
