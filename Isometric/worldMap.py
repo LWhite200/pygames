@@ -18,51 +18,6 @@ class Area:
         if self.warp[number]:  # Checking if a warp exists for that index
             return self.warp[number][1]  # return the name of the target area
 
-# Test grids
-test = [
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 2, 1, 1, 1, 1, 2, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 2, 1, 1, 1, 1, 2, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 11, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-]
-
-warptest = [
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2, 2, 1, 1, 1, 1, 1, 1, 2, 2],
-    [2,11, 1, 1, 1, 1, 1, 1,22, 2],
-    [2, 2, 1, 1, 1, 1, 1, 1, 2, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-]
-
-Test2 = [
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-    [2,11, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1,22, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1,33, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-]
-
-# takes the name and its zone to see where it warps to
-# then returns the new area name and the warp tile number
 def getNameWarp(curName, curPosition):
     # Look for the area object that matches curName
     for area in Areas:
@@ -77,13 +32,22 @@ def getNameWarp(curName, curPosition):
 
 # Returns the grid of a certain name
 def getArea(cur):
-    grids = {
-        "test": test,
-        "warptest": warptest,
-        "test2": Test2,  # Add the Test2 grid
-    }
-    cur = cur.lower()  # Convert to lowercase to match key names
-    return grids.get(cur, [])  # Default to an empty list if not found
+    """
+    Returns the grid of a certain name by dynamically accessing the global variables.
+    Converts the input string to lowercase to match the grid variable names.
+    """
+    cur = cur.lower()  # Convert to lowercase to match variable names
+    try:
+        # Use globals() to dynamically access the grid variable
+        grid = globals().get(cur)
+        if grid is not None:
+            return grid
+        else:
+            print(f"Grid '{cur}' not found.")
+            return []  # Return an empty list if the grid is not found
+    except Exception as e:
+        print(f"Error accessing grid '{cur}': {e}")
+        return []  # Return an empty list in case of any error
 
 # Returns the position player warped or started on
 def getPosition(cur, next):
@@ -93,21 +57,65 @@ def getPosition(cur, next):
         for j in range(len(grid[0])):
             if grid[i][j] == next:
                 return (i, j)  # Return (i, j) as the position of the "next" value
+            
+# -------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
-# Load the area objects    
+bird = [
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [2, 2, 2, 2, 11, 1, 2, 2, 2, 2],
+    [2, 2, 2, 1, 1, 1, 1, 2, 2, 2],
+    [2, 2, 1, 1, 1, 1, 1, 1, 2, 2],
+    [2, 2, 1, 1, 1, 1, 1, 1, 2, 2],
+    [2, 2, 2, 1, 1, 1, 1, 2, 2, 2],
+    [2, 2, 2, 2, 1, 22, 2, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+]
+
+ele = [
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [2, 11, 1, 1, 2, 2, 1, 1, 1, 2],
+    [2, 1, 1, 1, 2, 2, 1, 1, 1, 2],
+    [2, 1, 1, 1, 2, 2, 1, 1, 1, 2],
+    [2, 2, 2, 1, 1, 1, 1, 2, 2, 2],
+    [2, 2, 2, 1, 1, 1, 1, 2, 2, 2],
+    [2, 1, 1, 1, 2, 2, 1, 1, 1, 2],
+    [2, 1, 1, 1, 2, 2, 1, 1, 1, 2],
+    [2, 1, 1, 1, 2, 2, 1, 1, 22, 2],
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+]
+
+gir = [
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 11, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 1, 1, 1, 1, 1, 1, 1, 1, 22, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+]
+
 def main():
-    Areas.append(Area("WARPTEST", [
-        (11, ("Test2", 11)), 
-        (22, ("warptest", 11))
-    ]))
-    Areas.append(Area("Test2", [
-        (11, ("warptest", 22)), 
-        (22, ("test", 11)), 
-        (33, ("warptest", 11))
-    ]))
-    Areas.append(Area("test", [
-        (11, ("warptest", 22))
-    ]))
+    Areas.append(Area("bird", [(11, ("gir", 22)), (22, ("ele", 11))]))
+    Areas.append(Area("ele", [(11, ("bird", 22)), (22, ("gir", 11))]))
+    Areas.append(Area("gir", [(11, ("ele", 22)), (22, ("bird", 11))]))
+
+
+
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,8 @@
+" The main game function that handles movement, visuals, and game logic"
+
 import worldMap
 import pygame
 import sys
-
-
 
 # Initialize Pygame
 pygame.init()
@@ -189,11 +189,11 @@ def main():
     worldMap.main()
  
 
-    gridName = "warpTest"
-    warpedFrom = 22
-    grid = worldMap.getArea("warpTest")   # not working
+    gridName = "bird"
+    warpedFrom = 11
+    grid = worldMap.getArea(gridName)   # not working
     GRID_WIDTH, GRID_HEIGHT = len(grid), len(grid[0])
-    sx,sy = worldMap.getPosition("warpTest", warpedFrom)
+    sx,sy = worldMap.getPosition(gridName, warpedFrom)
     player_pos = [sx, sy]
 
     while True:
