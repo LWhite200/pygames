@@ -2,6 +2,7 @@ import pygame
 import sys
 import tkinter as tk
 from tkinter import simpledialog
+import os
 
 # Initialize Pygame
 pygame.init()
@@ -33,6 +34,19 @@ selected_tile = 1  # Default selected tile
 selected_option = 'f'  # Default selected option
 selected_object = 'n'  # Default object type (none)
 
+# Load tile images
+tile_images = {}
+tiles_folder = "tiles"
+if os.path.exists(tiles_folder):
+    for filename in os.listdir(tiles_folder):
+        if filename.endswith(".png"):
+            tile_number = filename.split(".")[0]
+            try:
+                tile_number = int(tile_number)
+                tile_images[tile_number] = pygame.image.load(os.path.join(tiles_folder, filename))
+            except ValueError:
+                pass  # Ignore files that don't have a numeric name
+
 def initialize_grid():
     """Initialize the grid with 'f' for 1 and 'w' for 2, and no objects."""
     grid = [[{"tile": f"1f", "object": "n", "metadata": None} for _ in range(GRID_HEIGHT)] for _ in range(GRID_WIDTH)]
@@ -53,7 +67,7 @@ def get_area_name():
     return area_name
 
 def save_grid_to_file():
-    """Saves the grid to a file with the specified area name."""
+    """Saves the grid to a file with the specified area name in 2D array format."""
     area_name = get_area_name()
     if area_name is None:  # User canceled the input
         print("Save canceled.")
@@ -63,6 +77,7 @@ def save_grid_to_file():
 
     try:
         with open(filename, 'w') as f:
+            f.write(f"{area_name} = [\n")  # Use the area name as the variable name
             for y in range(GRID_HEIGHT):
                 row = []
                 for x in range(GRID_WIDTH):
@@ -72,30 +87,38 @@ def save_grid_to_file():
                     object_data = tile_data["object"]
                     metadata = tile_data["metadata"]
 
-                    # Format the object field
+                    # Format the object field using | instead of {}
                     if tile_option == 'd':
                         door_id = metadata["door_id"]
                         place = metadata["place"]
                         place_door_id = metadata["place_door_id"]
-                        object_str = f"{{d,{door_id},{place},{place_door_id}}}"
+                        object_str = f"|d|{door_id}|{place}|{place_door_id}|"
                     elif object_data == 'n':
-                        object_str = "{n}"
+                        object_str = "|n|"
                     elif object_data == 'p':
                         person_id = metadata["person_id"]
                         direction = metadata["direction"]
-                        object_str = f"{{p,{person_id},{direction}}}"
+                        object_str = f"|p|{person_id}|{direction}|"
                     elif object_data == 'i':
                         item_id = metadata["item_id"]
                         num_items = metadata["num_items"]
-                        object_str = f"{{i,{item_id},{num_items}}}"
+                        object_str = f"|i|{item_id}|{num_items}|"
 
-                    # Save the tile in the format [tile number][f,w,z,d][{object}]
-                    row.append(f"{tile_number}{tile_option}{object_str}")
-                f.write(" ".join(row) + "\n")
+                    # Save the tile in the format "tile_number+tile_option+object_str"
+                    row.append(f'"{tile_number}{tile_option}{object_str}"')
+
+                # Write row as a list of strings, each one quoted
+                f.write("    [" + ", ".join(row) + "],\n")
+
+            f.write("]\n")
 
         print(f"Grid saved to {filename}")
     except IOError as e:
         print(f"Error saving file: {e}")
+
+
+
+
 
 def get_tile_color(tile_value):
     """Returns the color based on the tile's option (f, w, d, z)."""
@@ -120,14 +143,21 @@ def draw_grid():
             pygame.draw.rect(screen, tile_color, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
             pygame.draw.rect(screen, BLACK, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE), 2)
 
-            # Draw the number on the tile
+            # Draw the number on the tile or the tile image
             if isinstance(tile_data["tile"], str):
-                number = tile_data["tile"][:-1]  # Remove the option character
+                number = int(tile_data["tile"][:-1])  # Remove the option character
             else:
-                number = str(tile_data["tile"])
-            text_surface = FONT.render(number, True, BLACK)
-            text_rect = text_surface.get_rect(center=(x * TILE_SIZE + TILE_SIZE // 2, y * TILE_SIZE + TILE_SIZE // 2))
-            screen.blit(text_surface, text_rect)
+                number = tile_data["tile"]
+
+            if number in tile_images:
+                # Scale the image to fit the tile size
+                image = pygame.transform.scale(tile_images[number], (TILE_SIZE, TILE_SIZE))
+                screen.blit(image, (x * TILE_SIZE, y * TILE_SIZE))
+            else:
+                # Draw the number on the tile
+                text_surface = FONT.render(str(number), True, BLACK)
+                text_rect = text_surface.get_rect(center=(x * TILE_SIZE + TILE_SIZE // 2, y * TILE_SIZE + TILE_SIZE // 2))
+                screen.blit(text_surface, text_rect)
 
             # Draw the object (if any)
             if tile_data["object"] == 'p':  # Person (white circle)
@@ -141,13 +171,24 @@ def draw_tile_panel():
     for i in range(100):
         tile_x = panel_x + (i % 10) * 30
         tile_y = panel_y + (i // 10) * 30
+
+        # Draw the tile background
         pygame.draw.rect(screen, WHITE, (tile_x, tile_y, 25, 25))
         pygame.draw.rect(screen, BLACK, (tile_x, tile_y, 25, 25), 2)
-        text_surface = FONT.render(str(i), True, BLACK)
-        text_rect = text_surface.get_rect(center=(tile_x + 12, tile_y + 12))
-        screen.blit(text_surface, text_rect)
+
+        # If an image exists for this tile number, draw it
+        if i in tile_images:
+            image = pygame.transform.scale(tile_images[i], (25, 25))  # Scale the image to fit the panel
+            screen.blit(image, (tile_x, tile_y))
+        else:
+            # Otherwise, draw the number on the tile
+            text_surface = FONT.render(str(i), True, BLACK)
+            text_rect = text_surface.get_rect(center=(tile_x + 12, tile_y + 12))
+            screen.blit(text_surface, text_rect)
+
+        # Highlight the selected tile
         if i == selected_tile:
-            pygame.draw.rect(screen, (255, 0, 0), (tile_x, tile_y, 25, 25), 3)  # Highlight selected tile
+            pygame.draw.rect(screen, (255, 0, 0), (tile_x, tile_y, 25, 25), 3)
 
 def draw_radio_buttons():
     # Tile options (f, w, d, z)
