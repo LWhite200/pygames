@@ -2,7 +2,6 @@ import pygame
 import sys
 import tkinter as tk
 from tkinter import simpledialog
-import time
 
 # Initialize Pygame
 pygame.init()
@@ -90,8 +89,8 @@ def save_grid_to_file():
                         num_items = metadata["num_items"]
                         object_str = f"{{i,{item_id},{num_items}}}"
 
-                    # Save the tile in the format [tile number],[f,w,z,d],[{object}]
-                    row.append(f"{tile_number},{tile_option},{object_str}")
+                    # Save the tile in the format [tile number][f,w,z,d][{object}]
+                    row.append(f"{tile_number}{tile_option}{object_str}")
                 f.write(" ".join(row) + "\n")
 
         print(f"Grid saved to {filename}")
@@ -208,66 +207,42 @@ def prompt_person_info():
     root.destroy()
     return {"person_id": person_id, "direction": direction}
 
-# Add this variable to track the last click time
-last_click_time = 0
-CLICK_COOLDOWN = 0.2  # Minimum time in seconds between two consecutive clicks (200ms)
-
 def handle_mouse_click(processed_tiles):
-    global numWarps, selected_tile, selected_option, selected_object, last_click_time
-    current_time = time.time()
-
-    # Check if enough time has passed since the last click
-    if current_time - last_click_time < CLICK_COOLDOWN:
-        print("Click ignored due to cooldown.")
-        return  # Ignore this click if it happens too soon after the last one
-
-    last_click_time = current_time  # Update the last click time
-
+    global numWarps, selected_tile, selected_option, selected_object
     mouse_x, mouse_y = pygame.mouse.get_pos()
-    print(f"Mouse clicked at: {mouse_x}, {mouse_y}")
 
     # Check if the click is on the main grid
     if 0 <= mouse_x < GRID_WIDTH * TILE_SIZE and 0 <= mouse_y < GRID_HEIGHT * TILE_SIZE:
         grid_x = mouse_x // TILE_SIZE
         grid_y = mouse_y // TILE_SIZE
-        print(f"Clicked on grid tile: {grid_x}, {grid_y}")
 
-        # If this tile has already been processed in this drag, skip it
         if (grid_x, grid_y) in processed_tiles:
-            print(f"Tile ({grid_x}, {grid_y}) has already been processed, skipping.")
             return  # Skip if this tile has already been processed during this drag
 
         # Check for invalid combinations
         if (selected_option == 'd' and grid[grid_x][grid_y]["object"] != 'n') or \
            (selected_object != 'n' and grid[grid_x][grid_y]["tile"][-1] == 'd'):
-            print(f"Invalid tile combination at ({grid_x}, {grid_y}), skipping.")
             return  # Cannot place a door on an object or an object on a door
 
         # Update the tile value and object
         grid[grid_x][grid_y]["tile"] = f"{selected_tile}{selected_option}"
         grid[grid_x][grid_y]["object"] = selected_object
 
-        # Prevent prompting for the same tile multiple times by checking if metadata is set
-        if selected_option == 'd' and grid[grid_x][grid_y]["metadata"] is None:
-            print(f"Prompting for door info at ({grid_x}, {grid_y})")
-            grid[grid_x][grid_y]["metadata"] = prompt_door_info()  # Prompt once for door info
-        elif selected_object == 'i' and grid[grid_x][grid_y]["metadata"] is None:
-            print(f"Prompting for item info at ({grid_x}, {grid_y})")
-            grid[grid_x][grid_y]["metadata"] = prompt_item_info()  # Prompt once for item info
-        elif selected_object == 'p' and grid[grid_x][grid_y]["metadata"] is None:
-            print(f"Prompting for person info at ({grid_x}, {grid_y})")
-            grid[grid_x][grid_y]["metadata"] = prompt_person_info()  # Prompt once for person info
+        # Prompt for additional information
+        if selected_option == 'd':
+            grid[grid_x][grid_y]["metadata"] = prompt_door_info()
+        elif selected_object == 'i':
+            grid[grid_x][grid_y]["metadata"] = prompt_item_info()
+        elif selected_object == 'p':
+            grid[grid_x][grid_y]["metadata"] = prompt_person_info()
 
-        # Mark this tile as processed for the current drag to avoid re-triggering the prompt
         processed_tiles.add((grid_x, grid_y))
-        print(f"Tile ({grid_x}, {grid_y}) added to processed_tiles.")
 
-    # Check if the click is on the tile panel (the tile selection part of the UI)
+    # Check if the click is on the tile panel
     elif GRID_WIDTH * TILE_SIZE + 20 <= mouse_x <= GRID_WIDTH * TILE_SIZE + 320 and 20 <= mouse_y <= 320:
         tile_x = (mouse_x - (GRID_WIDTH * TILE_SIZE + 20)) // 30
         tile_y = (mouse_y - 20) // 30
-        selected_tile = tile_y * 10 + tile_x  # Update selected tile
-        print(f"Selected tile updated to: {selected_tile}")
+        selected_tile = tile_y * 10 + tile_x
 
     # Check if the click is on the tile options radio buttons
     elif GRID_WIDTH * TILE_SIZE + 20 <= mouse_x <= GRID_WIDTH * TILE_SIZE + 70 and 400 <= mouse_y <= 520:
@@ -275,7 +250,6 @@ def handle_mouse_click(processed_tiles):
         options = ['f', 'w', 'd', 'z']
         if 0 <= option_index < len(options):
             selected_option = options[option_index]
-            print(f"Selected option updated to: {selected_option}")
             if selected_option == 'd':
                 selected_object = 'n'  # Lock object to 'n' when 'd' is selected
 
@@ -286,8 +260,6 @@ def handle_mouse_click(processed_tiles):
             object_options = ['p', 'i', 'n']
             if 0 <= option_index < len(object_options):
                 selected_object = object_options[option_index]
-                print(f"Selected object updated to: {selected_object}")
-
 
 def main():
     global GRID_WIDTH, GRID_HEIGHT, grid
@@ -312,9 +284,12 @@ def main():
                 if event.button == 1:  # Left button released
                     mouse_dragging = False
 
+            # Ensure the selected option is not for placing door (d), person (p), or item (i)
             if event.type == pygame.MOUSEMOTION:
                 if mouse_dragging:
-                    handle_mouse_click(processed_tiles)
+                    
+                    if selected_option != 'd' and selected_object == 'n':
+                        handle_mouse_click(processed_tiles)
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
