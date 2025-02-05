@@ -24,7 +24,7 @@ RED = (255, 100, 100)  # z
 pygame.font.init()
 FONT = pygame.font.SysFont("Arial", 16)
 
-TILE_SIZE = 15
+TILE_SIZE = 10
 GRID_WIDTH, GRID_HEIGHT = 30, 30
 
 numWarps = 0  # Amount of "11 divisible"
