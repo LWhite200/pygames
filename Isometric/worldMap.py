@@ -1,49 +1,118 @@
 curMap = [[]]        # 2d array  | integers + letter  ' 32f or 99w
 curObjects = [[]]    # hash map  | x,y,type,item_id,number
-curWalls = []        # hash map  | (x,y)
+curDoors = []        # hash map  | door_id, destination_map, came_from_id, (x,y)
 
 start = [
-    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|"],
-    ["2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["2w|n|", "1f|n|", "1f|n|", "6f|n|", "6f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|"],
-    ["6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "8d|d|startDoor|start|startDoor|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "8d|d|two|start|one|", "3f|n|", "3f|n|", "3f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "3f|n|", "8d|d|four|start|three|", "3f|n|", "2w|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "9f|n|", "3f|n|", "3f|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "4f|n|", "5f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "9f|n|", "9f|n|", "9f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1s|n|", "6s|n|", "6s|n|", "6s|n|", "4f|n|", "5f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "9f|n|", "9f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1s|n|", "6s|n|", "6s|n|", "6s|n|", "4f|n|", "5f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1s|n|", "1s|n|", "1f|n|", "1f|n|", "1f|n|", "4f|n|", "5f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "3f|n|", "8d|d|one|start|two|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6f|n|", "1f|n|", "8d|d|three|start|four|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "1f|n|", "1f|n|", "1f|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "6s|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
+    ["2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|", "2w|n|"],
 ]
+
     
-# Reads the array and separates information
 def getMap(mapName):
-    global curMap, curObjects, curWalls
+    global curMap, curObjects, curDoors
+
+    # Reset
+    curDoors = {}  # curDoors should be a dictionary, not a list
+    curObjects = []  # curObjects should be a list, not a list of lists
     curMap = globals().get(mapName, None)  # global 2d array of the same name
+    
+    # Handle case where map is not found
+    if curMap is None:
+        print(f"Error: Map {mapName} not found.")
+        return []
+
     res = []  # Initialize res as an empty list
 
     for i in range(len(curMap)):
         row = []  # Initialize a new row
         for j in range(len(curMap[0])):
-            # string "2w|n|"
+            # Example string: "2w|n|" or "8d|d|four|start|three|"
             curString = curMap[i][j].split("|")
             row.append(curString[0])  # Append the first element of curString to the row
 
-            if "d" in curString[0]:  # Check if "d" is in the first part of the string
-                curWalls.append((i, j))  # Add the coordinate to curWalls
+            if "d" in curString[0]:  # Check if it's a door tile
+                print(f"Door: {i},{j}")  
+                door_id = curString[2]  
+                destination_map = curString[3] 
+                destination_door = curString[4]
+                # Store door info in curDoors
+                curDoors[door_id] = {
+                    "coordinates": (j, i),  # Store as (x, y) = (column, row)
+                    "destination_map": destination_map,
+                    "destination_door": destination_door
+                }
 
-            if curString[1] != 'n':  # If the second part is not 'n'
-                curObjects.append(curString[1])  # Append the second element (type) to curObjects
+            if len(curString) > 1 and curString[1] != 'n':  # Store non-'n' objects
+                curObjects.append(curString[1])
         
-        res.append(row)  # After processing each row, append it to the res 2D array
+        res.append(row)  # Add the row to the map result
 
     return res
 
+def getCurDoorName(x, y):
+    global curDoors
+    for door_id, door_info in curDoors.items():
+        door_x, door_y = door_info["coordinates"]
+        if (door_x, door_y) == (x, y):
+            return door_id
+    return None 
 
-def getCollision(x, y):
-    # Check if (x, y) is in the list of curWalls
-    if (x, y) in curWalls:
-        return True
-    else:
-        return False
+def getNextDoorName(door_id):
+    global curDoors
+    if door_id in curDoors:
+        return curDoors[door_id]["destination_door"] 
+    return None 
 
+def getMapNameFromDoor(door_id):
+    global curDoors
+    if door_id in curDoors:
+        return curDoors[door_id]["destination_map"]  
+    return None
+
+def getCoordinates(door_id):
+    global curDoors
+    if door_id in curDoors:
+        return curDoors[door_id]["coordinates"]  
+    return None

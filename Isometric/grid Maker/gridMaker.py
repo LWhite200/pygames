@@ -19,6 +19,7 @@ GREEN = (50, 255, 50)  # f
 ORANGE = (255, 165, 0)  # w
 GRAY = (200, 200, 200)  # d
 RED = (255, 100, 100)  # z
+BLUE = (0, 0, 255)  # s 
 
 # Font for rendering numbers
 pygame.font.init()
@@ -121,9 +122,9 @@ def save_grid_to_file():
 
 
 def get_tile_color(tile_value):
-    """Returns the color based on the tile's option (f, w, d, z)."""
+    """Returns the color based on the tile's option (f, w, d, z, s)."""
     if isinstance(tile_value, str):
-        option = tile_value[-1]  # Get the last character (f, w, d, z)
+        option = tile_value[-1]  # Get the last character (f, w, d, z, s)
         if option == 'f':
             return GREEN
         elif option == 'w':
@@ -132,6 +133,8 @@ def get_tile_color(tile_value):
             return GRAY
         elif option == 'z':
             return RED
+        elif option == 's':
+            return BLUE  # New color for 's'
     return WHITE  # Default color
 
 def draw_grid():
@@ -191,10 +194,10 @@ def draw_tile_panel():
             pygame.draw.rect(screen, (255, 0, 0), (tile_x, tile_y, 25, 25), 3)
 
 def draw_radio_buttons():
-    # Tile options (f, w, d, z)
-    options = ['f', 'w', 'd', 'z']
-    panel_x = GRID_WIDTH * TILE_SIZE + 20
-    panel_y = 400
+    # Tile options (f, w, d, z, s)
+    options = ['f', 'w', 'd', 'z', 's']
+    panel_x = GRID_WIDTH * TILE_SIZE + 20  # Starting X position for tile options
+    panel_y = 400  # Starting Y position for tile options
     for i, option in enumerate(options):
         option_x = panel_x
         option_y = panel_y + i * 30
@@ -208,7 +211,8 @@ def draw_radio_buttons():
 
     # Object options (p, i, n)
     object_options = ['p', 'i', 'n']
-    panel_y = 550
+    panel_x = GRID_WIDTH * TILE_SIZE + 120  # Move object options to the right of tile options
+    panel_y = 400  # Align object options with tile options vertically
     for i, option in enumerate(object_options):
         option_x = panel_x
         option_y = panel_y + i * 30
@@ -286,18 +290,18 @@ def handle_mouse_click(processed_tiles):
         selected_tile = tile_y * 10 + tile_x
 
     # Check if the click is on the tile options radio buttons
-    elif GRID_WIDTH * TILE_SIZE + 20 <= mouse_x <= GRID_WIDTH * TILE_SIZE + 70 and 400 <= mouse_y <= 520:
+    elif GRID_WIDTH * TILE_SIZE + 20 <= mouse_x <= GRID_WIDTH * TILE_SIZE + 70 and 400 <= mouse_y <= 550:
         option_index = (mouse_y - 400) // 30
-        options = ['f', 'w', 'd', 'z']
+        options = ['f', 'w', 'd', 'z', 's']
         if 0 <= option_index < len(options):
             selected_option = options[option_index]
             if selected_option == 'd':
                 selected_object = 'n'  # Lock object to 'n' when 'd' is selected
 
     # Check if the click is on the object options radio buttons
-    elif GRID_WIDTH * TILE_SIZE + 20 <= mouse_x <= GRID_WIDTH * TILE_SIZE + 70 and 550 <= mouse_y <= 640:
+    elif GRID_WIDTH * TILE_SIZE + 120 <= mouse_x <= GRID_WIDTH * TILE_SIZE + 170 and 400 <= mouse_y <= 490:
         if selected_option != 'd':  # Only allow object selection if 'd' is not selected
-            option_index = (mouse_y - 550) // 30
+            option_index = (mouse_y - 400) // 30
             object_options = ['p', 'i', 'n']
             if 0 <= option_index < len(object_options):
                 selected_object = object_options[option_index]
