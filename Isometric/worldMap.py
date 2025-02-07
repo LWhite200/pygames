@@ -15,7 +15,7 @@ start = [
     ["6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|"],
     ["6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "1f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|", "6f|n|"],
 ]
-
+    
 # Reads the array and separates information
 def getMap(mapName):
     global curMap, curObjects, curWalls
