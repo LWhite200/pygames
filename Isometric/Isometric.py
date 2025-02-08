@@ -1,4 +1,4 @@
-import pygame
+import pygame # type: ignore
 import os
 import worldMap
 
@@ -10,7 +10,7 @@ WINDOW_SIZE = (1080, 720)
 screen = pygame.display.set_mode(WINDOW_SIZE)
 pygame.display.set_caption("Tile Map")
 
-tile_size = 90
+tile_size = 64
 
 # Player properties
 player_pos = [3, 3]  # [x, y]
@@ -39,6 +39,26 @@ animation_frame = 0
 animation_speed = 150  # Milliseconds between frame changes
 last_animation_time = pygame.time.get_ticks()  # Initialize here to avoid referencing before assignment
 is_moving = False  # Track if the player is moving
+
+def load_person_image(person_id, direction):
+
+    direction = direction.upper()
+    if direction not in ["L", "U", "D", "R"]:
+        direction = "D"
+
+    tile_image_path = f"grid Maker/tiles/{person_id}_{direction}.png"
+    if os.path.exists(tile_image_path):
+        tile_image = pygame.image.load(tile_image_path).convert_alpha()
+        tile_image = pygame.transform.scale(tile_image, (tile_size, tile_size))
+    else:
+        # Placeholder image if person image is missing
+        color = (0, 200, 100)
+        tile_surface = pygame.Surface((tile_size, tile_size))
+        tile_surface.fill(color)
+        tile_image = tile_surface
+    return tile_image
+
+
 
 def load_player_image(direction):
     global animation_frame, last_animation_time, is_moving
@@ -86,16 +106,27 @@ def draw_map(map_data, player_pos, camera_offset, tile_images, direction):
     end_x = min(len(map_data[0]), int(camera_offset[0] + WINDOW_SIZE[0] / tile_size + 1))
     end_y = min(len(map_data), int(camera_offset[1] + WINDOW_SIZE[1] / tile_size + 1))
 
+    player_image = load_player_image(direction)
+
     for y in range(start_y, end_y):
         for x in range(start_x, end_x):
             tile = map_data[y][x]
             tile_number = ''.join([char for char in tile if char.isdigit()])
             tile_image = tile_images.get(tile_number, None)
+
+
             if tile_image:
                 screen.blit(tile_image, ((x - camera_offset[0]) * tile_size, (y - camera_offset[1]) * tile_size))
 
+            if worldMap.checkForPerson(x, y):
+                person_id = worldMap.get_person_id(x,y)
+                personDirection = worldMap.get_person_direction(x,y)
+
+                person_image = load_person_image(person_id, personDirection)
+                screen.blit(person_image, ((x - camera_offset[0]) * tile_size, (y - camera_offset[1]) * tile_size))
+
     # Get the current player image based on direction
-    player_image = load_player_image(direction)
+    
     screen.blit(player_image, ((player_pos[0] - camera_offset[0]) * tile_size, (player_pos[1] - camera_offset[1]) * tile_size))
 
 def main():
@@ -149,6 +180,8 @@ def main():
             # Stop the movement once the player reaches the target
             if abs(player_pos[0] - target_pos[0]) < 0.1 and abs(player_pos[1] - target_pos[1]) < 0.1:
                 player_pos = target_pos.copy()
+
+                
         elif current_time - last_move_time >= movement_cooldown and not teleporting:
             newX, newY = player_pos[0], player_pos[1]  # [x, y]
             is_moving = False  # Assume the player is not moving initially
@@ -175,7 +208,8 @@ def main():
                     current_direction = DIRECTIONS['DOWN']
                     is_moving = True
 
-            if newX != player_pos[0] or newY != player_pos[1]:
+            if (newX != player_pos[0] or newY != player_pos[1]) and not worldMap.checkForPerson(newX, newY):
+
                 if 'd' in map_data[int(newY)][int(newX)]:
                     curDoor = worldMap.getCurDoorName(newX, newY)  # The name of the door we are going to
                     nextDoor = worldMap.getNextDoorName(curDoor)
@@ -201,6 +235,7 @@ def main():
                 elif 's' not in map_data[int(newY)][int(newX)] and 'w' not in map_data[int(newY)][int(newX)]:
                     target_pos = [int(newX), int(newY)]
                     last_move_time = current_time
+
 
         
 
@@ -234,7 +269,7 @@ def main():
             screen.fill((0, 0, 0))  # Fill with black
             surface = pygame.Surface(WINDOW_SIZE)
             surface.set_alpha(fade_alpha)  # Apply alpha to create the fade effect
-            surface.fill((255, 255, 255))  # Black color
+            surface.fill((100, 100, 255))  # Black color
             screen.blit(surface, (0, 0))  # Blit the fade surface onto the screen
 
         # If not teleporting, draw the map
