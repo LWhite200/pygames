@@ -1,6 +1,7 @@
 import pygame # type: ignore
 import os
 import worldMap
+import queue
 
 # Initialize pygame
 pygame.init()
@@ -9,6 +10,8 @@ pygame.init()
 WINDOW_SIZE = (1080, 720)
 screen = pygame.display.set_mode(WINDOW_SIZE)
 pygame.display.set_caption("Tile Map")
+
+font = pygame.font.Font(None, 80)
 
 tile_size = 64
 
@@ -129,8 +132,65 @@ def draw_map(map_data, player_pos, camera_offset, tile_images, direction):
     
     screen.blit(player_image, ((player_pos[0] - camera_offset[0]) * tile_size, (player_pos[1] - camera_offset[1]) * tile_size))
 
+
+# stack to hold data, each line a maximum of 40 Characters.
+# Each line will end if there is a "." period.
+curDialog = []
+max_chars_per_line = 36
+
+def draw_dialog():
+    global curDialog, max_chars_per_line
+
+    # Get the current dialog lines
+    text1 = curDialog[0]  # top line
+    text2 = curDialog[1] if len(curDialog) > 1 else ""  # bottom line (if it exists)
+
+      # maximum characters per line
+
+    offset = 20   # the thickness of the border
+    yMoveUp = 20  # distance from the bottom of the screen
+    yScale = 200
+    xScale = WINDOW_SIZE[0] * 0.963
+
+    yCord = WINDOW_SIZE[1] - (yScale + yMoveUp)
+    xCord = WINDOW_SIZE[0] // 2 - (xScale) // 2
+
+    backColor = (125, 125, 125)
+    pygame.draw.rect(screen, backColor, ((xCord - offset, yCord - offset, xScale + 2 * offset, yScale + 2 * offset)))
+
+    frontColor = (50, 50, 50)
+    pygame.draw.rect(screen, frontColor, ((xCord, yCord, xScale, yScale)))
+
+    # Function to split text into lines
+    def split_text(text):
+        lines = []
+        while text:
+            line = text[:max_chars_per_line]
+            text = text[max_chars_per_line:]
+            lines.append(line)
+        return lines
+
+    # Split both lines of dialog text
+    lines1 = split_text(text1)
+    lines2 = split_text(text2)
+
+    # We want the first two lines of text from each message
+    lines_to_render = [lines1[:2], lines2[:2]]  # Ensure that each part has a max of two lines to render
+
+    for i, lines in enumerate(lines_to_render):
+        for j, line in enumerate(lines):
+            lineOffset = 0.25 + (0.5 * j)  # Adjust to position the text vertically
+
+            text_surface = font.render(line, True, (255, 255, 255))
+            text_rect = text_surface.get_rect(center=(xCord + xScale // 2, yCord + yScale * (lineOffset + i * 0.5)))
+            screen.blit(text_surface, text_rect)
+
+
+
+
+
 def main():
-    global player_pos, current_direction, is_moving
+    global player_pos, current_direction, is_moving, curDialog, max_chars_per_line
 
     map_data = worldMap.getMap("start")
     player_pos[0], player_pos[1] = worldMap.getCoordinates("startDoor")  # [x, y]
@@ -153,6 +213,7 @@ def main():
     hold_duration = 500  # Duration to hold black screen after fading
     fade_direction = 1   # 1 for fade-in, -1 for fade-out
 
+    left_mouse = False
     running = True
     while running:
         current_time = pygame.time.get_ticks()
@@ -181,12 +242,76 @@ def main():
             if abs(player_pos[0] - target_pos[0]) < 0.1 and abs(player_pos[1] - target_pos[1]) < 0.1:
                 player_pos = target_pos.copy()
 
+        # Open up dialog
+        elif current_time - last_move_time >= movement_cooldown and not teleporting  and event.type == pygame.MOUSEBUTTONUP and event.button == 1 and left_mouse == True:
+            left_mouse = False
+        elif current_time - last_move_time >= movement_cooldown and not teleporting  and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and left_mouse == False:
+            left_mouse = True
+            if curDialog:
+                curDialog.pop(0)  # pop the current lines showing
+                if curDialog:
+                    curDialog.pop(0)
+            else:
+                newX, newY = player_pos[0], player_pos[1]  # [x, y]
+
+                if current_direction == DIRECTIONS['LEFT']:
+                    newX -= 1
+                elif current_direction == DIRECTIONS['RIGHT']:
+                    newX += 1
+                elif current_direction == DIRECTIONS['UP']:
+                    newY -= 1
+                elif current_direction == DIRECTIONS['DOWN']:
+                    newY += 1
+
+                if worldMap.checkForPerson(newX, newY):
+                    testText = "The sun was setting over the horizon, casting a warm golden light across the quiet town. People walked leisurely down the streets, enjoying the peaceful evening. The air was crisp, and the sound of leaves rustling in the breeze added to the calm atmosphere. It was the perfect end to a beautiful day."
+                    
+                    curString = "" 
+                    curWord = ""  
+                    curLine = 0    
+            
+
+                    for i, c in enumerate(testText):
+
+                        if not(curLine == 0 and testText[i] == " "):
+                            curWord += c 
+                        curLine += 1  
+
+                        if c == " ":
+                            curString += curWord
+                            curWord = ""
+                        elif c == ".":
+                            curString += curWord
+                            curDialog.append(curString)
+                            curString = ""
+                            curWord = ""
+                            curLine = 0  
+                        elif curLine > max_chars_per_line - 2:
+                            if i + 1 < len(testText) and testText[i + 1] == " ":
+                                curString += curWord
+                                curWord = ""
+                            curDialog.append(curString)
+                            curString = ""
+                            curLine = 0  
+                    
+                    if curWord:
+                        curString += curWord
+                    if curString:
+                        curDialog.append(curString)
+
+
+
+
                 
-        elif current_time - last_move_time >= movement_cooldown and not teleporting:
+
+
+
+
+        # Player Movement
+        elif current_time - last_move_time >= movement_cooldown and not teleporting and not curDialog:
             newX, newY = player_pos[0], player_pos[1]  # [x, y]
             is_moving = False  # Assume the player is not moving initially
 
-           
             if keys[pygame.K_a]:
                 if player_pos[0] > 0:
                     newX -= 1
@@ -275,6 +400,8 @@ def main():
         # If not teleporting, draw the map
         if not teleporting:
             draw_map(map_data, player_pos, camera_pos, tile_images, current_direction)
+            if curDialog:
+                draw_dialog()
 
         pygame.display.flip()
 
