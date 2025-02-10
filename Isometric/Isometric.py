@@ -12,12 +12,15 @@ screen = pygame.display.set_mode(WINDOW_SIZE)
 pygame.display.set_caption("Tile Map")
 
 font = pygame.font.Font(None, 80)
+menuFont = pygame.font.Font(None, 36)
 
 tile_size = 64
 
 # Player properties
 player_pos = [3, 3]  # [x, y]
 player_speed = 1
+
+buttons = ["VARIABLE", "ITEMS", "SETTINGS", "DEBUG", "RESET", "WIFI CONN.", "MAP"]
 
 # Directions
 DIRECTIONS = {
@@ -185,6 +188,39 @@ def draw_dialog():
             text_rect = text_surface.get_rect(center=(xCord + xScale // 2, yCord + yScale * (lineOffset + i * 0.5)))
             screen.blit(text_surface, text_rect)
 
+def draw_sideMenu():
+
+    offset = 20   # the thickness of the border
+    yMoveUp = 20  # distance from the bottom of the screen
+    yScale = WINDOW_SIZE[0] * 0.5
+    xScale = WINDOW_SIZE[1] * 0.33
+
+    yCord = WINDOW_SIZE[1] // 2 - yScale //2
+    xCord = WINDOW_SIZE[0] - (xScale + 2 * offset)
+
+    backColor = (125, 125, 125)
+    pygame.draw.rect(screen, backColor, ((xCord - offset, yCord - offset, xScale + 2 * offset, yScale + 2 * offset)))
+
+    frontColor = (50, 50, 50)
+    pygame.draw.rect(screen, frontColor, ((xCord, yCord, xScale, yScale)))
+
+
+    button_height = 50  # Define a reasonable height for each button
+    spacing = 25  # Spacing between buttons
+
+    # Button display broken
+    for i, button in enumerate(buttons):
+        # Calculate the position for each button
+        button_y = yCord + 20 + i * (button_height + spacing)
+
+        # Draw the button
+        button_color = (30, 30, 30)
+        pygame.draw.rect(screen, button_color, (xCord + offset, button_y, xScale - 2 * offset, button_height))
+
+        # Render the text for the button
+        text_surface = menuFont.render(button, True, (255, 255, 255))
+        text_rect = text_surface.get_rect(center=(xCord + xScale // 2, button_y + button_height // 2))
+        screen.blit(text_surface, text_rect)
 
 
 
@@ -213,7 +249,9 @@ def main():
     hold_duration = 500  # Duration to hold black screen after fading
     fade_direction = 1   # 1 for fade-in, -1 for fade-out
 
+    side_menu = False
     left_mouse = False
+    right_mouse = False
     running = True
     while running:
         current_time = pygame.time.get_ticks()
@@ -242,10 +280,19 @@ def main():
             if abs(player_pos[0] - target_pos[0]) < 0.1 and abs(player_pos[1] - target_pos[1]) < 0.1:
                 player_pos = target_pos.copy()
 
+
+
+         # Open up dialog
+        elif current_time - last_move_time >= movement_cooldown and not teleporting  and event.type == pygame.MOUSEBUTTONUP and event.button == 3 and right_mouse == True:
+            right_mouse = False
+        elif current_time - last_move_time >= movement_cooldown and not teleporting  and event.type == pygame.MOUSEBUTTONDOWN and event.button == 3 and right_mouse == False:
+            right_mouse = True
+            side_menu = not side_menu
+
         # Open up dialog
-        elif current_time - last_move_time >= movement_cooldown and not teleporting  and event.type == pygame.MOUSEBUTTONUP and event.button == 1 and left_mouse == True:
+        elif not side_menu and current_time - last_move_time >= movement_cooldown and not teleporting  and event.type == pygame.MOUSEBUTTONUP and event.button == 1 and left_mouse == True:
             left_mouse = False
-        elif current_time - last_move_time >= movement_cooldown and not teleporting  and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and left_mouse == False:
+        elif not side_menu and current_time - last_move_time >= movement_cooldown and not teleporting  and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and left_mouse == False:
             left_mouse = True
             if curDialog:
                 curDialog.pop(0)  # pop the current lines showing
@@ -308,7 +355,7 @@ def main():
 
 
         # Player Movement
-        elif current_time - last_move_time >= movement_cooldown and not teleporting and not curDialog:
+        elif not side_menu and current_time - last_move_time >= movement_cooldown and not teleporting and not curDialog:
             newX, newY = player_pos[0], player_pos[1]  # [x, y]
             is_moving = False  # Assume the player is not moving initially
 
@@ -402,6 +449,8 @@ def main():
             draw_map(map_data, player_pos, camera_pos, tile_images, current_direction)
             if curDialog:
                 draw_dialog()
+            if side_menu:
+                draw_sideMenu()
 
         pygame.display.flip()
 

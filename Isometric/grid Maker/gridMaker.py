@@ -1,3 +1,9 @@
+" Features Needed: "
+" Loading maps from text file "
+" Stop deleting maps when changing size "
+" Size of cursor/how many blocks places "
+" Visual to show what type a tile is on the main grid "
+
 import pygame
 import sys
 import tkinter as tk
