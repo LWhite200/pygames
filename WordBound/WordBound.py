@@ -1,243 +1,178 @@
-" Updated version of the WordBound I made for Wii "
-
-import pygame # type: ignore
+import pygame
 import random
-import string
-import sys
 
-# Initialize Pygame
+# Initialize PyGame
 pygame.init()
 
-# Set up display
+# Screen dimensions
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("1v1 Battle")
+pygame.display.set_caption("WordBound")
 
-# Define colors
+# Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-GREY = (169, 169, 169)
-BUTTON_COLOR = (100, 100, 100) 
-BUTTON_HOVER_COLOR =  (50, 50, 50)  
-button_width = 110
-button_height = 55
+BLUE = (0, 255, 255)
 
-sos = 10 # scale of stuff
+# Fonts
+font = pygame.font.Font(None, 36)
 
-# Define fonts
-font = pygame.font.SysFont('Arial', 35)
-font2 = pygame.font.SysFont('Arial', sos *4)
+# Letter class
+class Letter:
+    def __init__(self, char):
+        self.char = char.upper()
+        self.type = random.randint(0, 11)  # Random type for variety - do later
+        self.power = 50 if self.char in ["A", "B"] else 0
+        self.tier = random.randint(0, 5)
+        self.accuracy = 100
 
-# Letter class (already defined by you)
-class letter:
-    def __init__(self):
-        self.name = self.ranName()
-        self.color1, self.color2 = self.ranColor()
-        self.level = self.ranLevel()
-        self.maxHP = self.ranHP()
-        self.hp = self.maxHP
-        self.power = self.ranPower()
-        self.defense = self.ranDefense()
-        self.speed = self.ranSpeed()
-        self.accuracy = self.ranAccuracy()
-        self.evasive = self.ranEvasive()
-        self.luck = self.ranLuck()
-        self.isAttacking = False
+    def draw(self, x, y, selected=False):
+        color = BLUE if selected else WHITE
+        pygame.draw.rect(screen, color, (x, y, 40, 40), 2)
+        text = font.render(self.char, True, WHITE)
+        screen.blit(text, (x + 10, y + 10))
 
-    def ranName(self):
-        return ''.join(random.choices(string.ascii_letters + string.digits, k=4))
+# Deity class
+class Deity:
+    def __init__(self, name, letters):
+        self.name = name
+        self.letters = letters  # List of Letter objects
+        self.maxHP = 100
+        self.curHP = self.maxHP
+        self.speed = random.randint(50, 101)
+        self.comboStamina = 5
+        self.physical = 100
+        self.special = 100
+        self.selected_letters = []  # Initialize selected_letters
 
-    def ranColor(self):
-        colors = ["red", "orange", "yellow", "green", "blue", "purple", "white", "grey", None]
-        color1 = random.choice(colors)
-        color2 = random.choice(colors)
-        while color1 == color2:
-            color2 = random.choice(colors)
-        return color1, color2
+    def take_damage(self, damage):
+        self.curHP -= damage
+        if self.curHP < 0:
+            self.curHP = 0
 
-    def ranLevel(self):
-        return random.randint(1, 100)
+    def draw(self, x, y):
+        text = font.render(f"{self.name} (HP: {self.curHP})", True, WHITE)
+        screen.blit(text, (x, y))
+        for i, letter in enumerate(self.letters):
+            letter.draw(x + i * 50, y + 40, letter in self.selected_letters)
 
-    def ranHP(self):
-        return random.randint(50, 200)
-
-    def ranPower(self):
-        return random.randint(10, 100)
-
-    def ranDefense(self):
-        return random.randint(5, 80)
-
-    def ranSpeed(self):
-        return random.randint(5, 50)
-
-    def ranAccuracy(self):
-        return random.randint(70, 100)
-
-    def ranEvasive(self):
-        return random.randint(70, 100)
-
-    def ranLuck(self):
-        return random.randint(1, 10)
-
-    def take_damage(self, amount):
-        self.hp -= amount
-        if self.hp < 0:
-            self.hp = 0
-
-    def is_alive(self):
-        return self.hp > 0
+def get_random_letters():
+    letter_options = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+    return [Letter(random.choice(letter_options)) for _ in range(5)]
 
 
+def enemy_choose_letters(enemy):
+    # Enemy randomly selects 1-3 letters to form a word
+    num_letters = random.randint(1, 3)
+    chosen_letters = random.sample(enemy.letters, num_letters)
+    return chosen_letters
 
-def calculate_damage(attacker, defender):
-    base_damage = attacker.power
-    defense_factor = defender.defense / 100
-    mitigated_damage = base_damage * (1 - defense_factor)
-    random_factor = random.uniform(0.9, 1.1)
-    final_damage = mitigated_damage * random_factor
-    critical_chance = attacker.luck / 100
-    if random.random() < critical_chance:
-        final_damage *= 2
-        print("Critical hit!")
-    
-    return int(final_damage)
+player1 = Deity("AERIS", get_random_letters())
+player2 = Deity("ZORAN", get_random_letters())
 
+cur_word = []
+message = ""
 
+playX = 520
+enemX = 20
 
+playY = 500
+enemY = 30
 
-# Create player and enemy
-player = letter()
-enemy = letter()
+def calculate_damage(word):
+    # Simple damage calculation: sum of the power of the letters
+    return sum(letter.power for letter in word)
 
+def main():
+    global cur_word, message
 
-
-def game_loop():
     running = True
-    userTurn = True
-
-    playX = 520
-    enemX = 20
-
-    playY = 500
-    enemY = 30
-
-    clock = pygame.time.Clock()
-    buttonClicked = ""
-    buttonHeld = False
-
+    playerChoose = True
     while running:
         screen.fill(BLACK)
-
-
-
-        # Turns determine
-        if not userTurn:
-            first, second = player, enemy
-            if enemy.speed > player.speed:
-                first, second = second, first
-                
-            damage = calculate_damage(first, second)
-            second.take_damage(damage)
-            print(f"{second.name} attacked for {damage} damage!")
-            if second.is_alive():
-                damage = calculate_damage(second, first)
-                first.take_damage(damage)
-                print(f"{first.name} attacked for {damage} damage!")
-            userTurn = True
-            buttonClicked = ""
-
-        # letter, types, hp display
-        for i in range(0, 2):
-            ltr = player if i != 0 else enemy
-            x = playX if i != 0 else enemX
-            y = playY if i != 0 else enemY
-            ltr_name = font2.render(f"{ltr.name}", True, WHITE)
-            screen.blit(ltr_name, (x, y))
-            pygame.draw.rect(screen, GREY, (x + 90, y + 35, 150, sos)) 
-            pygame.draw.rect(screen, GREEN, (x + 90, y + 35, 150 * (ltr.hp / ltr.maxHP), sos))
-            if ltr.color1:
-                pygame.draw.rect(screen, color_mapping(ltr.color1), (x + 90, y + 10, 20, sos * 2)) 
-            if ltr.color2:
-                pygame.draw.rect(screen, color_mapping(ltr.color2), (x + 120, y + 10, 20, sos * 2)) 
-
-
-        # button draw and detection
-        options = ["Attack", "Color1", "Color2", "Defend"]
-        for i, option in enumerate(options):
-
-            button_rect = pygame.Rect( 20 + i * 120, playY + 5, button_width, button_height)
-            mouse_pos = pygame.mouse.get_pos()
-
-            if button_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(screen, BUTTON_HOVER_COLOR, button_rect)
-                if pygame.mouse.get_pressed()[0] and buttonHeld == False: 
-                    buttonClicked = option
-                    buttonHeld = True
-                elif not pygame.mouse.get_pressed()[0]:
-                    buttonHeld = False
-            else:
-                pygame.draw.rect(screen, BUTTON_COLOR, button_rect)
-
-
-            option_text = font.render(option, True, WHITE)
-            screen.blit(option_text, (27 + i * 120, playY + 10))
-
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:
-                    buttonClicked = "Attack"
-                elif event.key == pygame.K_2:
-                    buttonClicked = "Color1"
-                elif event.key == pygame.K_3:
-                    buttonClicked = "Color2"
-                elif event.key == pygame.K_4:
-                    buttonClicked = "Defend"
 
-                
-        if buttonClicked != "":
-            userTurn = False
+            # What moves the player chooses - button clicking
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    for i, letter in enumerate(player1.letters):
+                        x = playX + i * 50
+                        y = playY + 50
 
-        
+                        if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
+                            if letter not in cur_word:
+                                cur_word.append(letter)
+                                player1.selected_letters.append(letter)
 
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    playerChoose = False
 
-        if not player.is_alive():
-            game_over_text = font.render("You lost! Game Over!", True, RED)
-            screen.blit(game_over_text, (WIDTH // 2 - 100, HEIGHT // 2))
-            pygame.display.update()
-            pygame.time.delay(2000)
+                elif event.key == pygame.K_BACKSPACE:
+                    if cur_word:
+                        removed_letter = cur_word.pop()
+                        player1.selected_letters.remove(removed_letter)
+
+        # When the player has made their choice, see who to attack first
+        if not playerChoose:
+            if cur_word:
+
+                enem_choice = enemy_choose_letters(player2)
+
+                firstGroup = cur_word
+                secondGroup = enem_choice
+
+                firstPlayer, secondPlayer = (player1, player2) if player1.speed >= player2.speed else (player2, player1)
+                firstGroup, secondGroup = (cur_word, enem_choice) if player1.speed >= player2.speed else (enem_choice, cur_word)
+
+                dmg1 = calculate_damage(firstGroup)
+                secondPlayer.take_damage(dmg1)
+
+                dmg2 = calculate_damage(secondGroup)
+                firstPlayer.take_damage(dmg2)
+
+                cur_word = []
+                player1.selected_letters = []
+                message = f"{firstPlayer.name} attacks first! Damage dealt: {dmg1}"
+            else:
+                message = "No letters selected!"
+
+            playerChoose = True  # Reset for the next turn
+
+        # Draw players
+        player1.draw(playX, playY)
+        player2.draw(enemX, enemY)
+
+        # Draw input word
+        input_box = pygame.Rect(50, 500, 200, 40)
+        pygame.draw.rect(screen, WHITE, input_box, 2)
+        input_word = "".join([letter.char for letter in cur_word])
+        input_surface = font.render(input_word, True, WHITE)
+        screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
+
+        # Draw message
+        message_surface = font.render(message, True, RED)
+        screen.blit(message_surface, (50, 550))
+
+        # Check for game over
+        if player1.curHP <= 0:
+            message = f"{player2.name} wins!"
             running = False
-        elif not enemy.is_alive():
-            win_text = font.render("You won! Victory!", True, GREEN)
-            screen.blit(win_text, (WIDTH // 2 - 100, HEIGHT // 2))
-            pygame.display.update()
-            pygame.time.delay(2000)
+        elif player2.curHP <= 0:
+            message = f"{player1.name} wins!"
             running = False
 
-        pygame.display.update()
-        clock.tick(30)
+        # Update display
+        pygame.display.flip()
 
+    # Quit PyGame
     pygame.quit()
-    sys.exit()
 
-def color_mapping(color_name):
-    color_dict = {
-        "red": (255, 0, 0),
-        "orange": (255, 165, 0),
-        "yellow": (255, 255, 0),
-        "green": (0, 255, 0),
-        "blue": (0, 0, 255),
-        "purple": (128, 0, 128),
-        "black": (50, 50, 50),
-        "white": (255, 255, 255),
-        "grey": (169, 169, 169),
-        None: (20, 20, 20), 
-    }
-    return color_dict.get(color_name, (0, 0, 0))
-
-game_loop()
+# Run the game
+if __name__ == "__main__":
+    main()
