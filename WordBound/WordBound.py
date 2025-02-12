@@ -19,14 +19,34 @@ BLUE = (0, 255, 255)
 # Fonts
 font = pygame.font.Font(None, 36)
 
+def color_mapping(color_name):
+    color_dict = {
+        "red": (255, 0, 0),
+        "orange": (255, 165, 0),
+        "yellow": (255, 255, 0),
+        "green": (0, 255, 0),
+        "blue": (0, 0, 255),
+        "purple": (128, 0, 128),
+        "black": (50, 50, 50),
+        "white": (255, 255, 255),
+        "grey": (169, 169, 169),
+        None: (20, 20, 20), 
+    }
+    return color_dict.get(color_name, (0, 0, 0))
+
 # Letter class
 class Letter:
     def __init__(self, char):
         self.char = char.upper()
-        self.type = random.randint(0, 11)  # Random type for variety - do later
+        self.color1 = self.ranColor()    # the type of each letter
         self.power = 50 if self.char in ["A", "B"] else 0
-        self.tier = random.randint(0, 5)
+        self.tier = random.randint(0, 2) # the stamina it takes to use in a combo
+        print(str(self.tier))
         self.accuracy = 100
+
+    def ranColor(self):
+        colors = ["red", "orange", "yellow", "green", "blue", "purple", "white", "grey"]
+        return random.choice(colors)
 
     def draw(self, x, y, selected=False):
         color = BLUE if selected else WHITE
@@ -34,7 +54,6 @@ class Letter:
         text = font.render(self.char, True, WHITE)
         screen.blit(text, (x + 10, y + 10))
 
-# Deity class
 class Deity:
     def __init__(self, name, letters):
         self.name = name
@@ -52,14 +71,35 @@ class Deity:
         if self.curHP < 0:
             self.curHP = 0
 
-    def draw(self, x, y):
+    def draw(self, x, y, isPlayer1):
         text = font.render(f"{self.name} (HP: {self.curHP})", True, WHITE)
-        screen.blit(text, (x, y))
+        screen.blit(text, (x + 20, y + 10))
+
+        # Draw letters
         for i, letter in enumerate(self.letters):
-            letter.draw(x + i * 50, y + 40, letter in self.selected_letters)
+            letter.draw(x + i * 50, y + 50, letter in self.selected_letters)
+
+        # Display combo stamina
+        if isPlayer1:
+            stamina_cost = player1.calculate_combo_stamina_cost()
+            color = GREEN if stamina_cost <= self.comboStamina else RED
+            stamina_text = font.render(f"Combo Cost: {stamina_cost} / {self.comboStamina}", True, color)
+            screen.blit(stamina_text, (x + 20, y + 110))
+
+    def calculate_combo_stamina_cost(self):
+        # Only calculate stamina cost if more than one letter is selected
+        if len(self.selected_letters) > 1:
+            return sum(letter.tier for letter in self.selected_letters)
+        return 0  # No cost for a single letter
+    
+    def update_stamina(self, cost):
+        self.comboStamina -= cost
+        if self.comboStamina < 0:
+            self.comboStamina = 0
+
 
 def get_random_letters():
-    letter_options = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+    letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
     return [Letter(random.choice(letter_options)) for _ in range(5)]
 
 
@@ -69,40 +109,43 @@ def enemy_choose_letters(enemy):
     chosen_letters = random.sample(enemy.letters, num_letters)
     return chosen_letters
 
-player1 = Deity("AERIS", get_random_letters())
-player2 = Deity("ZORAN", get_random_letters())
+player1 = Deity("Gunther", get_random_letters())
+player2 = Deity("Hugh Janus", get_random_letters())
 
 cur_word = []
-message = ""
+message1 = ""
+message2 = ""
 
 playX = 520
 enemX = 20
 
-playY = 500
+playY = 400
 enemY = 30
+
+buttonY = 50
 
 def calculate_damage(word):
     # Simple damage calculation: sum of the power of the letters
     return sum(letter.power for letter in word)
 
 def main():
-    global cur_word, message
+    global cur_word, message1, message2
 
     running = True
     playerChoose = True
     while running:
         screen.fill(BLACK)
 
+        # Handle player input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-            # What moves the player chooses - button clicking
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     for i, letter in enumerate(player1.letters):
                         x = playX + i * 50
-                        y = playY + 50
+                        y = playY + buttonY
 
                         if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
                             if letter not in cur_word:
@@ -111,7 +154,13 @@ def main():
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    playerChoose = False
+                    # Calculate stamina cost for the selected letters
+                    stamina_cost = player1.calculate_combo_stamina_cost()
+
+                    if stamina_cost <= player1.comboStamina:
+                        # If more than 1 letter is selected and enough stamina
+                        playerChoose = False
+                        player1.update_stamina(stamina_cost)
 
                 elif event.key == pygame.K_BACKSPACE:
                     if cur_word:
@@ -122,53 +171,66 @@ def main():
         if not playerChoose:
             if cur_word:
 
-                enem_choice = enemy_choose_letters(player2)
 
-                firstGroup = cur_word
-                secondGroup = enem_choice
+                p1, p2 = player1, player2
+                move1, move2 = cur_word, enemy_choose_letters(player2)
 
-                firstPlayer, secondPlayer = (player1, player2) if player1.speed >= player2.speed else (player2, player1)
-                firstGroup, secondGroup = (cur_word, enem_choice) if player1.speed >= player2.speed else (enem_choice, cur_word)
+                # flip if opposing player fastter
+                if player2.speed > player1.speed:
+                    p1, p2 = player2, player1
+                    move1, move2 = move2, move1
 
-                dmg1 = calculate_damage(firstGroup)
-                secondPlayer.take_damage(dmg1)
+                dmg1 = calculate_damage(move1)
+                p2.take_damage(dmg1)
 
-                dmg2 = calculate_damage(secondGroup)
-                firstPlayer.take_damage(dmg2)
-
+                dmg2 = calculate_damage(move2)
+                p1.take_damage(dmg2)
+            
                 cur_word = []
                 player1.selected_letters = []
-                message = f"{firstPlayer.name} attacks first! Damage dealt: {dmg1}"
+                message1 = f"{p2.name} hit by '{' '.join([letter.char for letter in move1])}' for {dmg1} dmg!"
+                message2 = f"{p1.name} hit by '{' '.join([letter.char for letter in move2])}' for {dmg2} dmg!"
+
             else:
-                message = "No letters selected!"
+                message1 = "No letters selected!"
+                message2 = "     Try Again"
 
             playerChoose = True  # Reset for the next turn
 
         # Draw players
-        player1.draw(playX, playY)
-        player2.draw(enemX, enemY)
+        player1.draw(playX, playY, True)
+        player2.draw(enemX, enemY, False)
 
         # Draw input word
-        input_box = pygame.Rect(50, 500, 200, 40)
+        input_box = pygame.Rect(50, playY + buttonY, 200, 40)
         pygame.draw.rect(screen, WHITE, input_box, 2)
         input_word = "".join([letter.char for letter in cur_word])
         input_surface = font.render(input_word, True, WHITE)
         screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
 
-        # Draw message
-        message_surface = font.render(message, True, RED)
-        screen.blit(message_surface, (50, 550))
+        # Draw messages ------------
+        def drawMessage():
+            message_surface = font.render(message1, True, (200,200,200))
+            screen.blit(message_surface, (100, HEIGHT // 2))
+            message_surface = font.render(message2, True, WHITE)
+            screen.blit(message_surface, (100, HEIGHT // 2 + 50))
 
         # Check for game over
         if player1.curHP <= 0:
-            message = f"{player2.name} wins!"
+            message1 = f"{player2.name}   WINS!!!!"
+            message2 = ""
             running = False
         elif player2.curHP <= 0:
-            message = f"{player1.name} wins!"
+            message2 = f"{player1.name}   WINS!!!!"
+            message2 = ""
             running = False
+
+        drawMessage()
 
         # Update display
         pygame.display.flip()
+
+    pygame.time.delay(3000)  # Wait for 1000 milliseconds (1 second)
 
     # Quit PyGame
     pygame.quit()
