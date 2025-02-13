@@ -1,4 +1,4 @@
-import pygame
+import pygame # type: ignore
 import random
 
 # Initialize PyGame
@@ -18,6 +18,7 @@ BLUE = (0, 255, 255)
 
 # Fonts
 font = pygame.font.Font(None, 36)
+bigfont = pygame.font.Font(None, 48)
 
 def color_mapping(color_name):
     color_dict = {
@@ -73,12 +74,17 @@ class Letter:
         print(str(ccc))
         return ccc
 
-    def draw(self, x, y, selected=False, hovered=False):
+    def draw(self, x, y, selected=False, hovered=False, isPlayer1=True):
         # Adjust size and color if hovered and not selected
+        global curDialog
 
         boxX, boxY = x, y
+        curFont = font
 
-        if hovered and not selected:
+        if hovered and not selected and isPlayer1 and not curDialog:
+            x -= 4
+            y -= 4
+            curFont = bigfont
             rect_size = 50  # Slightly bigger
             boxX -= 5
             boxY -= 5
@@ -90,7 +96,7 @@ class Letter:
         pygame.draw.rect(screen, color, (boxX, boxY, rect_size, rect_size))
         border_color = (0, 155, 255) if selected else (255, 255, 255)
         pygame.draw.rect(screen, border_color, (boxX, boxY, rect_size, rect_size), 3)
-        text = font.render(self.char, True, (255, 255, 255))
+        text = curFont.render(self.char, True, (255, 255, 255))
         screen.blit(text, (x + 10, y + 10))
 
 class Deity:
@@ -122,7 +128,7 @@ class Deity:
 
             mouse_pos = pygame.mouse.get_pos()
             hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
-            letter.draw(newX, newY, letter in self.selected_letters, hovered)
+            letter.draw(newX, newY, letter in self.selected_letters, hovered, isPlayer1)
 
         # Display combo stamina
         if isPlayer1:
@@ -163,19 +169,19 @@ player1 = Deity("Gunther", get_random_letters())
 player2 = Deity("Hugh Janus", get_random_letters())
 
 cur_word = []
-message1 = ""
-message2 = ""
 
 playX = 520
 enemX = 20
 
-playY = 400
+playY = 432
 enemY = 30
 
 buttonY = 50
 
 def calculate_damage(word, opponent_deity):
+    global curDialog
 
+    aboveOrBelow = sum(letter.power for letter in word)
     base_damage = 0 # sum(letter.power for letter in word)
     
     for letter in word:
@@ -186,21 +192,64 @@ def calculate_damage(word, opponent_deity):
         # Checks each type and adds or subracts accordingly
         if curType in weaknesses[oppType]:
             base_damage += curDmg + 10
-            print("weakness hit")
         elif curType in resistances[oppType]:
             base_damage += (curDmg // 2)
-            print("resistance yes")
         else:
             base_damage += curDmg
 
+    if base_damage > aboveOrBelow:
+        curDialog.append("Super Effective!!!")
+        curDialog.append(f"")
+    elif base_damage < aboveOrBelow:
+        curDialog.append("Not That Effective")
+        curDialog.append(f"")
+
     return base_damage
+
+curDialog = []
+
+# Where messages shown
+def draw_dialog():
+    global curDialog
+
+    # Get the current dialog lines
+    text1 = curDialog[0] if len(curDialog) > 0 else ""
+    text2 = curDialog[1] if len(curDialog) > 1 else ""
+
+    offset = 20   # the thickness of the border
+    yMoveUp = 20  # distance from the bottom of the screen
+    yScale = 150
+    xScale = WIDTH - 2 * offset
+
+    yCord = HEIGHT - (yScale + yMoveUp)
+    xCord = 0 + offset
+
+    backColor = (125, 125, 125)
+    pygame.draw.rect(screen, backColor, (xCord - offset, yCord - offset, xScale + 2 * offset, yScale + 2 * offset))
+    frontColor = (50, 50, 50)
+    pygame.draw.rect(screen, frontColor, (xCord, yCord, xScale, yScale))
+
+    if text1 != "":
+        col3 = (5, 5, 5)
+        pygame.draw.rect(screen, col3, (xCord + offset, yCord + offset, xScale * 0.6, yScale - 2 * offset))
+
+
+    # Draw the text with proper vertical spacing
+    for i, line in enumerate([text1, text2]):
+        text_surface = font.render(line, True, (255, 255, 255))
+        text_rect = (xCord + 25, (yCord + 30) + (i * offset * 2.5))  # Adjusting the vertical spacing for the lines
+        screen.blit(text_surface, text_rect)
+
+
+
 
 
 def main():
-    global cur_word, message1, message2
+    global cur_word, curDialog
 
     running = True
     playerChoose = True
+    haveWinner = False
     while running:
         screen.fill(BLACK)
 
@@ -211,14 +260,21 @@ def main():
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    for i, letter in enumerate(player1.letters):
-                        x = playX + i * 50
-                        y = playY + buttonY
 
-                        if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                            if letter not in cur_word:
-                                cur_word.append(letter)
-                                player1.selected_letters.append(letter)
+                    if curDialog:
+                        curDialog.pop(0) 
+                        if curDialog:
+                            curDialog.pop(0)
+
+                    else:
+                        for i, letter in enumerate(player1.letters):
+                            x = playX + i * 50
+                            y = playY + buttonY
+
+                            if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
+                                if letter not in cur_word:
+                                    cur_word.append(letter)
+                                    player1.selected_letters.append(letter)
 
                 if event.button == 3:
                     if cur_word:
@@ -227,16 +283,27 @@ def main():
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-                    # Calculate stamina cost for the selected letters
-                    stamina_cost = player1.calculate_combo_stamina_cost()
 
-                    if stamina_cost <= player1.comboStamina:
-                        # If more than 1 letter is selected and enough stamina
-                        playerChoose = False
-                        player1.update_stamina(stamina_cost)
+                    if curDialog:
+                        curDialog.pop(0) 
+                        if curDialog:
+                            curDialog.pop(0)
+
+                    else:
+                        # Calculate stamina cost for the selected letters
+                        stamina_cost = player1.calculate_combo_stamina_cost()
+
+                        if stamina_cost <= player1.comboStamina:
+                            # If more than 1 letter is selected and enough stamina
+                            playerChoose = False
+                            player1.update_stamina(stamina_cost)
+
+
+
+        draw_dialog()
 
         # When the player has made their choice, see who to attack first
-        if not playerChoose:
+        if not playerChoose and not curDialog:
             if cur_word:
 
 
@@ -251,17 +318,20 @@ def main():
                 dmg1 = calculate_damage(move1, p2)
                 p2.take_damage(dmg1)
 
-                dmg2 = calculate_damage(move2, p1)
-                p1.take_damage(dmg2)
+                curDialog.append(f"{p1.name} used '{' '.join([letter.char for letter in move1])}' ")
+                curDialog.append(f"It did {dmg1} dmg!")
+
+                if p2.curHP > 0:
+                    dmg2 = calculate_damage(move2, p1)
+                    p1.take_damage(dmg2)
+                    curDialog.append(f"{p2.name} used '{' '.join([letter.char for letter in move2])}' ")
+                    curDialog.append(f"It did {dmg2} dmg!")
             
                 cur_word = []
                 player1.selected_letters = []
-                message1 = f"{p2.name} hit by '{' '.join([letter.char for letter in move1])}' for {dmg1} dmg!"
-                message2 = f"{p1.name} hit by '{' '.join([letter.char for letter in move2])}' for {dmg2} dmg!"
-
             else:
-                message1 = "No letters selected!"
-                message2 = "     Try Again"
+                curDialog.append("No letters selected!")
+                curDialog.append("Try Again")
 
             playerChoose = True  # Reset for the next turn
 
@@ -269,36 +339,33 @@ def main():
         player1.draw(playX, playY, True)
         player2.draw(enemX, enemY, False)
 
-        # Draw input word
-        input_box = pygame.Rect(50, playY + buttonY, 200, 40)
-        pygame.draw.rect(screen, WHITE, input_box, 2)
-        input_word = "".join([letter.char for letter in cur_word])
-        input_surface = font.render(input_word, True, WHITE)
-        screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
-
-        # Draw messages ------------
-        def drawMessage():
-            message_surface = font.render(message1, True, (200,200,200))
-            screen.blit(message_surface, (100, HEIGHT // 2))
-            message_surface = font.render(message2, True, WHITE)
-            screen.blit(message_surface, (100, HEIGHT // 2 + 50))
+        # Draw input wordbox, current word being formed
+        if not curDialog and not haveWinner:
+            ipX, ipY = 20, playY + 1.5 * buttonY
+            input_box = pygame.Rect(75, playY + buttonY, 220, 40)
+            pygame.draw.rect(screen, WHITE, input_box, 2)
+            input_word = "".join([letter.char for letter in cur_word])
+            input_surface = font.render(input_word, True, WHITE)
+            screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
+        
 
         # Check for game over
-        if player1.curHP <= 0:
-            message1 = f"{player2.name}   WINS!!!!"
-            message2 = ""
-            running = False
-        elif player2.curHP <= 0:
-            message2 = f"{player1.name}   WINS!!!!"
-            message2 = ""
+        if player1.curHP <= 0 and not haveWinner:
+            curDialog.append(f"{player2.name}   WINS!!!!")
+            haveWinner = True
+        elif player2.curHP <= 0 and not haveWinner:
+            curDialog.append(f"{player1.name}   WINS!!!!")
+            haveWinner = True
+
+        if haveWinner and not curDialog:
             running = False
 
-        drawMessage()
+
 
         # Update display
         pygame.display.flip()
 
-    pygame.time.delay(3000)  # Wait for 1000 milliseconds (1 second)
+    pygame.time.delay(1000)  # Wait for 1000 milliseconds (1 second)
 
     # Quit PyGame
     pygame.quit()
