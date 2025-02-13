@@ -23,8 +23,8 @@ def color_mapping(color_name):
     color_dict = {
         "red": (255, 0, 0),
         "orange": (255, 165, 0),
-        "yellow": (255, 255, 0),
-        "green": (0, 255, 0),
+        "yellow": (225, 225, 0),
+        "green": (0, 215, 0),
         "blue": (0, 0, 255),
         "purple": (128, 0, 128),
         "black": (50, 50, 50),
@@ -34,24 +34,50 @@ def color_mapping(color_name):
     }
     return color_dict.get(color_name, (0, 0, 0))
 
+# type weakness and resistances
+weaknesses = {
+    "red": ["blue", "green"],     # Red is weak to Blue and Green
+    "orange": ["purple", "blue"], # Orange is weak to Purple and Blue
+    "yellow": ["orange", "green"], # Yellow is weak to Orange and Green
+    "green": ["red", "purple"],   # Green is weak to Red and Purple
+    "blue": ["yellow", "purple"], # Blue is weak to Yellow and Purple
+    "purple": ["green", "yellow"], # Purple is weak to Green and Yellow
+    "grey": ["red", "blue"],      # Grey is weak to Red and Blue
+}
+
+resistances = {
+    "red": ["green", "yellow"],    # Red resists Green and Yellow
+    "orange": ["yellow", "purple"], # Orange resists Yellow and Purple
+    "yellow": ["red", "blue"],     # Yellow resists Red and Blue
+    "green": ["blue", "orange"],   # Green resists Blue and Orange
+    "blue": ["purple", "green"],   # Blue resists Purple and Green
+    "purple": ["orange", "red"],   # Purple resists Orange and Red
+    "grey": ["green", "purple"],   # Grey resists Green and Purple
+}
+
+
 # Letter class
 class Letter:
     def __init__(self, char):
         self.char = char.upper()
-        self.color1 = self.ranColor()    # the type of each letter
-        self.power = 50 if self.char in ["A", "B"] else 0
+        self.battleType = self.ranColor()
+        self.color1 = color_mapping(self.battleType)
+        self.power = 50 if self.char in ["A", "B"] else 10
         self.tier = random.randint(0, 2) # the stamina it takes to use in a combo
         print(str(self.tier))
         self.accuracy = 100
 
     def ranColor(self):
-        colors = ["red", "orange", "yellow", "green", "blue", "purple", "white", "grey"]
-        return random.choice(colors)
+        colors = ["red", "orange", "yellow", "green", "blue", "purple", "grey"]
+        ccc = random.choice(colors)
+        print(str(ccc))
+        return ccc
 
     def draw(self, x, y, selected=False):
-        color = BLUE if selected else WHITE
-        pygame.draw.rect(screen, color, (x, y, 40, 40), 2)
-        text = font.render(self.char, True, WHITE)
+        color = (0,155,255) if selected else (255,255,255)
+        pygame.draw.rect(screen, self.color1, (x, y, 40, 40))
+        pygame.draw.rect(screen, color, (x, y, 40, 40), 3)
+        text = font.render(self.char, True, (255,255,255))
         screen.blit(text, (x + 10, y + 10))
 
 class Deity:
@@ -65,6 +91,7 @@ class Deity:
         self.physical = 100
         self.special = 100
         self.selected_letters = []  # Initialize selected_letters
+        self.battleType = self.randType()
 
     def take_damage(self, damage):
         self.curHP -= damage
@@ -72,7 +99,7 @@ class Deity:
             self.curHP = 0
 
     def draw(self, x, y, isPlayer1):
-        text = font.render(f"{self.name} (HP: {self.curHP})", True, WHITE)
+        text = font.render(f"{self.name} (HP: {self.curHP})", True, color_mapping(self.battleType))
         screen.blit(text, (x + 20, y + 10))
 
         # Draw letters
@@ -89,13 +116,18 @@ class Deity:
     def calculate_combo_stamina_cost(self):
         # Only calculate stamina cost if more than one letter is selected
         if len(self.selected_letters) > 1:
-            return sum(letter.tier for letter in self.selected_letters)
+            return sum(letter.tier for letter in self.selected_letters[1:])  # Skip the first letter
         return 0  # No cost for a single letter
+
     
     def update_stamina(self, cost):
         self.comboStamina -= cost
         if self.comboStamina < 0:
             self.comboStamina = 0
+
+    def randType(self):
+        colors = ["red", "orange", "yellow", "green", "blue", "purple", "grey"]
+        return random.choice(colors)
 
 
 def get_random_letters():
@@ -124,9 +156,27 @@ enemY = 30
 
 buttonY = 50
 
-def calculate_damage(word):
-    # Simple damage calculation: sum of the power of the letters
-    return sum(letter.power for letter in word)
+def calculate_damage(word, opponent_deity):
+
+    base_damage = 0 # sum(letter.power for letter in word)
+    
+    for letter in word:
+        curType = letter.battleType
+        curDmg = letter.power
+        oppType = opponent_deity.battleType
+        
+        # Checks each type and adds or subracts accordingly
+        if curType in weaknesses[oppType]:
+            base_damage += curDmg + 10
+            print("weakness hit")
+        elif curType in resistances[oppType]:
+            base_damage += (curDmg // 2)
+            print("resistance yes")
+        else:
+            base_damage += curDmg
+
+    return base_damage
+
 
 def main():
     global cur_word, message1, message2
@@ -152,8 +202,13 @@ def main():
                                 cur_word.append(letter)
                                 player1.selected_letters.append(letter)
 
+                if event.button == 3:
+                    if cur_word:
+                        removed_letter = cur_word.pop()
+                        player1.selected_letters.remove(removed_letter)
+
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
+                if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
                     # Calculate stamina cost for the selected letters
                     stamina_cost = player1.calculate_combo_stamina_cost()
 
@@ -161,11 +216,6 @@ def main():
                         # If more than 1 letter is selected and enough stamina
                         playerChoose = False
                         player1.update_stamina(stamina_cost)
-
-                elif event.key == pygame.K_BACKSPACE:
-                    if cur_word:
-                        removed_letter = cur_word.pop()
-                        player1.selected_letters.remove(removed_letter)
 
         # When the player has made their choice, see who to attack first
         if not playerChoose:
@@ -180,10 +230,10 @@ def main():
                     p1, p2 = player2, player1
                     move1, move2 = move2, move1
 
-                dmg1 = calculate_damage(move1)
+                dmg1 = calculate_damage(move1, p2)
                 p2.take_damage(dmg1)
 
-                dmg2 = calculate_damage(move2)
+                dmg2 = calculate_damage(move2, p1)
                 p1.take_damage(dmg2)
             
                 cur_word = []
