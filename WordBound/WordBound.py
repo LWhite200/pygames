@@ -73,11 +73,24 @@ class Letter:
         print(str(ccc))
         return ccc
 
-    def draw(self, x, y, selected=False):
-        color = (0,155,255) if selected else (255,255,255)
-        pygame.draw.rect(screen, self.color1, (x, y, 40, 40))
-        pygame.draw.rect(screen, color, (x, y, 40, 40), 3)
-        text = font.render(self.char, True, (255,255,255))
+    def draw(self, x, y, selected=False, hovered=False):
+        # Adjust size and color if hovered and not selected
+
+        boxX, boxY = x, y
+
+        if hovered and not selected:
+            rect_size = 50  # Slightly bigger
+            boxX -= 5
+            boxY -= 5
+            color = tuple(max(0, c - 75) for c in self.color1)  # Darker color
+        else:
+            rect_size = 40
+            color = self.color1
+
+        pygame.draw.rect(screen, color, (boxX, boxY, rect_size, rect_size))
+        border_color = (0, 155, 255) if selected else (255, 255, 255)
+        pygame.draw.rect(screen, border_color, (boxX, boxY, rect_size, rect_size), 3)
+        text = font.render(self.char, True, (255, 255, 255))
         screen.blit(text, (x + 10, y + 10))
 
 class Deity:
@@ -104,7 +117,12 @@ class Deity:
 
         # Draw letters
         for i, letter in enumerate(self.letters):
-            letter.draw(x + i * 50, y + 50, letter in self.selected_letters)
+            newX = x + i * 50
+            newY = y + 50
+
+            mouse_pos = pygame.mouse.get_pos()
+            hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
+            letter.draw(newX, newY, letter in self.selected_letters, hovered)
 
         # Display combo stamina
         if isPlayer1:
