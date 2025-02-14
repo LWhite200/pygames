@@ -20,40 +20,75 @@ BLUE = (0, 255, 255)
 font = pygame.font.Font(None, 36)
 bigfont = pygame.font.Font(None, 48)
 
+
+
 def color_mapping(color_name):
     color_dict = {
-        "red": (255, 0, 0),
-        "orange": (255, 165, 0),
-        "yellow": (225, 225, 0),
-        "green": (0, 215, 0),
-        "blue": (0, 0, 255),
-        "purple": (128, 0, 128),
-        "black": (50, 50, 50),
-        "white": (255, 255, 255),
-        "grey": (169, 169, 169),
-        None: (20, 20, 20), 
+
+        "red":    (255, 0, 0),    
+        "blue":   (0, 0, 255), 
+        "green":  (0, 255, 0), 
+        "brown":  (165, 42, 42),  # Brown
+        "lime":   (0, 250, 110),   
+        "yellow": (210, 210, 0), 
+
+        # Magical/Special Types
+        "black":  (10, 10, 10), 
+        "white":  (220, 220, 220), 
+        "grey":   (128, 128, 128), 
+        "cyan":   (0, 255, 255), 
+        "magenta":(255, 0, 255), 
+        "orange": (255, 165, 0), 
+        "purple": (128, 0, 128), 
+        "maroon": (128, 0, 0), 
     }
-    return color_dict.get(color_name, (0, 0, 0))
+    return color_dict.get(color_name, (0, 0, 0))  # Default to black if color not found
 
 # type weakness and resistances
 weaknesses = {
-    "red": ["blue", "green"],    
-    "orange": ["purple", "blue"], 
-    "yellow": ["orange", "green"], 
-    "green": ["red", "purple"],   
-    "blue": ["yellow", "purple"], 
-    "purple": ["green", "yellow"],
-    "grey": ["red", "blue"],    
+    # Nature Types
+    "red":   ["blue",  "brown"],    
+    "blue":  ["green", "yellow"], 
+    "green": ["red",   "cyan", "lime"], 
+
+    "brown":  ["blue",  "green"],
+    "lime":   ["brown", "maroon", "orange"],  # bug type, offensive
+
+    "black": ["white", "magenta", "red"], 
+    "white": ["black", "maroon", "cyan"],
+    "grey":  [],  
+
+    "cyan":   ["yellow",  "maroon", "red"],  # ice, cold
+    "magenta":["cyan",    "purple"], 
+    "yellow": ["magenta", "brown", "orange"], 
+          
+    "orange": ["brown", "purple"],   # like organic, oranges
+    "purple": ["white", "orange"],   # thanos, bulky, sheer determination
+    "maroon": ["magenta", "lime"],
 }
 
+
 resistances = {
-    "red": ["green", "yellow"],    # Red resists Green and Yellow
-    "orange": ["yellow", "purple"], # Orange resists Yellow and Purple
-    "yellow": ["red", "blue"],     # Yellow resists Red and Blue
-    "green": ["blue", "orange"],   # Green resists Blue and Orange
-    "blue": ["purple", "green"],   # Blue resists Purple and Green
-    "purple": ["orange", "red"],   # Purple resists Orange and Red
-    "grey": ["green", "purple"],   # Grey resists Green and Purple
+    # Nature Types
+    "red":    ["green", "yellow", "orange"],    
+    "blue":   ["purple", "green", "cyan"], 
+    "green":  ["blue", "orange", "lime"], 
+
+    "brown":  ["red", "yellow", "maroon"], 
+    "lime":   ["green", "cyan", "magenta"], 
+
+    # Magical/Special Types
+    "black":  ["grey", "purple", "maroon"], 
+    "white":  ["grey", "cyan", "magenta"], 
+    "grey":   [],
+
+    "cyan":   ["blue", "green", "white"], 
+    "magenta":["black", "purple", "maroon"], 
+    "yellow": ["red", "brown", "orange"], 
+
+    "orange": ["yellow", "brown", "grey"], 
+    "purple": ["magenta", "white", "black"], 
+    "maroon": ["brown", "lime", "cyan"], 
 }
 
 
@@ -69,7 +104,7 @@ class Letter:
         self.accuracy = 100
 
     def ranColor(self):
-        colors = ["red", "orange", "yellow", "green", "blue", "purple", "grey"]
+        colors = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
         ccc = random.choice(colors)
         print(str(ccc))
         return ccc
@@ -146,7 +181,7 @@ class Deity:
             text = font.render(f"{self.name} ({self.curHP}) | ({self.curHP2})", True, color_mapping(self.battleType))
         screen.blit(text, (x - 10, y + 10))
 
-        spaceBetweenGroups = 5  # The space between the two groups of letters
+        spaceBetweenGroups = 10  # The space between the two groups of letters
 
         # Draw letters in the first group (self.letters), offset a bit to the left
         for i, letter in enumerate(self.letters):
@@ -178,8 +213,8 @@ class Deity:
         # Only calculate stamina cost if more than one letter is selected (from both lets and lets2)
         if len(self.lets) + len(self.lets2) > 1:
             # Combine both lets and lets2, and calculate the sum of tiers, skipping the first letter
-            combined_letters = self.lets + self.lets2
-            return sum(letter.tier for letter in combined_letters[1:])  # Skip the first letter
+            combined_letters = self.lets[1:] + self.lets2[1:]
+            return sum(letter.tier for letter in combined_letters)  # Skip the first letter
         return 0  # No cost for a single letter
 
 
@@ -190,7 +225,7 @@ class Deity:
             self.comboStamina = 0
 
     def randType(self):
-        colors = ["red", "orange", "yellow", "green", "blue", "purple", "grey"]
+        colors = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
         return random.choice(colors)
 
 
@@ -374,7 +409,7 @@ def main():
                         # check the second group of letters
                         if player1.letters2:
                             for i, letter in enumerate(player1.letters2):
-                                x = playX + (len(player1.letters) * 50) + 5 + i * 50
+                                x = playX + (len(player1.letters) * 50) + 10 + i * 50
                                 y = playY + buttonY
 
                                 if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
@@ -456,17 +491,16 @@ def main():
                 playerSplit = False
 
 
-            # Player has their words and also which target to hit ----------------- {{{HERE HELP}}}
-            # This is what you need to fix chat gpt or deepseek
+            # Player has their words and also which target to hit ----------------- 
             elif player1.lets:
                 # False = left, True = Right (rare one)
-                playTarg1 = True if SSC[1] else False  # player1.speed | player1.curHP
-                playTarg2 = True if SSC[3] else False  # player1.speed2 | player1.curHP2
+                playTarg1 = True if SSC[1] else False  
+                playTarg2 = True if SSC[3] else False  
                 play1 = player1.lets
                 play2 = player1.lets2 if player1.lets2 else None
 
-                enemTarg1 = False if not player2.letters2 else random.choice([False, True])  # player2.speed | player2.curHP
-                enemTarg2 = False if not player2.letters2 else random.choice([False, True])  # player2.speed2 | player2.curHP2
+                enemTarg1 = False if len(player1.letters2) <= 0 else random.choice([False, True])  
+                enemTarg2 = False if len(player1.letters2) <= 0 else random.choice([False, True])  
                 enem1 = player2.letters
                 enem2 = player2.letters2 if player2.letters2 else None
 
@@ -474,24 +508,32 @@ def main():
 
                 # Add player moves to the list
                 if play1:
-                    listBySpeed.append((player1, play1, playTarg1, player1.speed, player2))
+                    listBySpeed.append((player1, play1, playTarg1, player1.speed, player2, False))
                 if play2:
-                    listBySpeed.append((player1, play2, playTarg2, player1.speed2, player2))
+                    listBySpeed.append((player1, play2, playTarg2, player1.speed2, player2, True))
 
                 # Add enemy moves to the list
                 if enem1:
-                    listBySpeed.append((player2, enem1, enemTarg1, player2.speed, player1))
+                    listBySpeed.append((player2, enem1, enemTarg1, player2.speed, player1, False))
                 if enem2:
-                    listBySpeed.append((player2, enem2, enemTarg2, player2.speed2, player1))
+                    listBySpeed.append((player2, enem2, enemTarg2, player2.speed2, player1, True))
 
                 # Sort by speed (higher speed first)
                 listBySpeed.sort(key=lambda x: x[3], reverse=True)
 
                 # Process each move
-                for person, move, target, speed, targDeity in listBySpeed:
+                for person, move, target, speed, targDeity, side in listBySpeed:
+                    
+                    # If the current side is either null or knocked out
+                    if not side and person.curHP <= 0:
+                        continue
+                    elif side and person.curHP2 <= 0:
+                        continue
+
                     dmg = calculate_damage(move, targDeity)
 
                     # Determine which HP to update (left or right)
+                    peekHP = 0
                     if target:  # Target is right
                         targDeity.take_damage2(dmg)  # Apply damage to the right side
                         peekHP = targDeity.curHP2
@@ -500,12 +542,17 @@ def main():
                         peekHP = targDeity.curHP
 
                     # Update dialog based on the result
-                    if peekHP > 0:
-                        curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in move])}'")
-                        curDialog.append(f"It did {dmg} dmg!")
-                    else:
-                        curDialog.append(f"{targDeity.name}'s {'right' if target else 'left'} side fainted!")
-                        curDialog.append(f"")
+                    
+                    curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in move])}'")
+                    curDialog.append(f"It did {dmg} dmg!")
+
+                    if peekHP < 1:
+                        if targDeity.letters and targDeity.letters2:
+                            curDialog.append(f"{targDeity.name}'s {'right' if target else 'left'} side fainted!")
+                            curDialog.append(f"")
+                        else:
+                            curDialog.append(f"{targDeity.name} fainted!")
+                            curDialog.append(f"")
 
                         # so only one is present... remove from letters2 so less complicated
                         if target:
