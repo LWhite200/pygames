@@ -1,5 +1,6 @@
 import pygame # type: ignore
 import random
+from objs import deity
 
 # Initialize PyGame
 pygame.init()
@@ -17,18 +18,16 @@ GREEN = (0, 255, 0)
 BLUE = (0, 255, 255)
 
 # Fonts
-font = pygame.font.Font(None, 36)
+font = pygame.font.Font(None, 38)
 bigfont = pygame.font.Font(None, 48)
-
-
 
 def color_mapping(color_name):
     color_dict = {
 
         "red":    (255, 0, 0),    
         "blue":   (0, 0, 255), 
-        "green":  (0, 255, 0), 
-        "brown":  (165, 42, 42),  # Brown
+        "green":  (0, 240, 0), 
+        "brown":  (150, 75, 0),  # Brown
         "lime":   (0, 250, 110),   
         "yellow": (210, 210, 0), 
 
@@ -91,31 +90,10 @@ resistances = {
     "maroon": ["brown", "lime", "cyan"], 
 }
 
-
-# Letter class
-class Letter:
-    def __init__(self, char):
-        self.char = char.upper()
-        self.battleType = self.ranColor()
-        self.color1 = color_mapping(self.battleType)
-        self.power = 50 if self.char in ["A", "B"] else 10
-        self.tier = random.randint(0, 2) # the stamina it takes to use in a combo
-        print(str(self.tier))
-        self.accuracy = 100
-
-    def ranColor(self):
-        colors = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
-        ccc = random.choice(colors)
-        print(str(ccc))
-        return ccc
-
-    def draw(self, x, y, selected=False, hovered=False, isPlayer1=True, playerChoose=True):
-        # Adjust size and color if hovered and not selected
+def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, playerChoose=True):
         global curDialog
-
         boxX, boxY = x, y
         curFont = font
-
         if hovered and not selected and isPlayer1 and not playerChoose and not curDialog:
             x -= 4
             y -= 4
@@ -123,115 +101,57 @@ class Letter:
             rect_size = 50  # Slightly bigger
             boxX -= 5
             boxY -= 5
-            color = tuple(max(0, c - 75) for c in self.color1)  # Darker color
+            color = tuple(max(0, c - 75) for c in letter.color1)  # Darker color
         else:
             rect_size = 40
-            color = self.color1
-
+            color = letter.color1
         pygame.draw.rect(screen, color, (boxX, boxY, rect_size, rect_size))
         border_color = (0, 155, 255) if selected else (255, 255, 255)
         pygame.draw.rect(screen, border_color, (boxX, boxY, rect_size, rect_size), 3)
-        text = curFont.render(self.char, True, border_color)
+        text = curFont.render(letter.char, True, border_color)
         screen.blit(text, (x + 10, y + 10))
 
-class Deity:
-    def __init__(self, name, letters, startMultipleDebug):
-        self.name = name
-        self.maxHP = 100
-        self.maxSpeed = random.randint(50, 101)
-
-        if startMultipleDebug:
-            self.letters = letters[:3]  # List of Letter objects
-            self.letters2 = letters[3:]  # empty
-
-            calcHP = len(self.letters) / (len(self.letters)+len(self.letters2))
-            self.curHP = int(self.maxHP * calcHP)
-            self.curHP2 = int(self.maxHP - self.curHP)
-
-            self.speed = int(self.maxSpeed * calcHP)
-            self.speed2 = int(self.maxSpeed - self.maxSpeed)
-        else:
-            self.letters = letters  # List of Letter objects
-            self.letters2 = []  # empty
-            self.curHP = self.maxHP
-            self.curHP2 = 0
-            self.speed = self.maxSpeed
-            self.speed2 = 0
-
-        self.comboStamina = 5
-        self.physical = 100
-        self.special = 100
-        self.lets = []  # Initialize lets
-        self.lets2 = []  # Initialize lets
-        self.battleType = self.randType()
-
-    def take_damage(self, damage):
-        self.curHP -= damage
-        if self.curHP < 0:
-            self.curHP = 0
-
-    def take_damage2(self, damage):
-        self.curHP2 -= damage
-        if self.curHP2 < 0:
-            self.curHP2 = 0
-
-    def draw(self, x, y, isPlayer1, playerChoose):
-        text = font.render(f"{self.name} (HP: {self.curHP})", True, color_mapping(self.battleType))
-        if self.letters2:
-            text = font.render(f"{self.name} ({self.curHP}) | ({self.curHP2})", True, color_mapping(self.battleType))
+    
+def drawDeity(deity, x, y, isPlayer1, playerChoose):
+        text = font.render(f"{deity.name} (HP: {deity.curHP})", True, color_mapping(deity.battleType))
+        if deity.letters2:
+            text = font.render(f"{deity.name} ({deity.curHP}) | ({deity.curHP2})", True, color_mapping(deity.battleType))
         screen.blit(text, (x - 10, y + 10))
 
         spaceBetweenGroups = 10  # The space between the two groups of letters
 
-        # Draw letters in the first group (self.letters), offset a bit to the left
-        for i, letter in enumerate(self.letters):
-            newX = x + i * 50 - 10  if not self.letters2 else x + i * 50 - 10
+        # Draw letters in the first group (deity.letters), offset a bit to the left
+        for i, letter in enumerate(deity.letters):
+            newX = x + i * 50 - 10  if not deity.letters2 else x + i * 50 - 10
             newY = y + 50
 
             mouse_pos = pygame.mouse.get_pos()
             hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
-            letter.draw(newX, newY, letter in self.lets or letter in self.lets2, hovered, isPlayer1, playerChoose)
+            drawLetter(letter, newX, newY, letter in deity.lets or letter in deity.lets2, hovered, isPlayer1, playerChoose)
 
-        # Draw letters in the second group (self.letters2), to the right of the first group
-        for i, letter in enumerate(self.letters2):
-            newX = x + (len(self.letters) * 50) + spaceBetweenGroups + i * 50  # Positioning to the right of the first group
+        # Draw letters in the second group (deity.letters2), to the right of the first group
+        for i, letter in enumerate(deity.letters2):
+            newX = x + (len(deity.letters) * 50) + spaceBetweenGroups + i * 50  # Positioning to the right of the first group
             newY = y + 50
 
             mouse_pos = pygame.mouse.get_pos()
             hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
-            letter.draw(newX, newY, letter in self.lets or letter in self.lets2, hovered, isPlayer1, playerChoose)
+            drawLetter(letter, newX, newY, letter in deity.lets or letter in deity.lets2, hovered, isPlayer1, playerChoose)
 
         # Display combo stamina (for player1)
         if isPlayer1:
             stamina_cost = player1.calculate_combo_stamina_cost()
-            color = GREEN if stamina_cost <= self.comboStamina else RED
-            stamina_text = font.render(f"Combo Cost: {stamina_cost} / {self.comboStamina}", True, color)
+            color = GREEN if stamina_cost <= deity.comboStamina else RED
+            stamina_text = font.render(f"Combo Cost: {stamina_cost} / {deity.comboStamina}", True, color)
             screen.blit(stamina_text, (x + 20, y + 110))
-
-
-    def calculate_combo_stamina_cost(self):
-        # Only calculate stamina cost if more than one letter is selected (from both lets and lets2)
-        if len(self.lets) + len(self.lets2) > 1:
-            # Combine both lets and lets2, and calculate the sum of tiers, skipping the first letter
-            combined_letters = self.lets[1:] + self.lets2[1:]
-            return sum(letter.tier for letter in combined_letters)  # Skip the first letter
-        return 0  # No cost for a single letter
-
-
-    
-    def update_stamina(self, cost):
-        self.comboStamina -= cost
-        if self.comboStamina < 0:
-            self.comboStamina = 0
-
-    def randType(self):
-        colors = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
-        return random.choice(colors)
-
+        else:
+            color = GREEN if 0 < deity.comboStamina else RED
+            stamina_text = font.render(f"Enemy Stamina: {deity.comboStamina}", True, color)
+            screen.blit(stamina_text, (x + 20, y + 110))
 
 def get_random_letters():
     letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
-    return [Letter(random.choice(letter_options)) for _ in range(5)]
+    return [deity.Letter(random.choice(letter_options)) for _ in range(5)]
 
 
 def enemy_choose_letters(enemy):
@@ -251,7 +171,7 @@ buttonY = 50
 SSC = [False, False, False, False]
 
 # word = word Attacking   |   opp = deity being attacked (left and right side have same type/defense)
-def calculate_damage(word, opp):
+def calculate_damage(word, opp, play):
     global curDialog
 
     aboveOrBelow = sum(letter.power for letter in word)
@@ -278,8 +198,6 @@ def calculate_damage(word, opp):
         curDialog.append(f"")
 
     return base_damage
-
-
 
 curDialog = []
 
@@ -345,8 +263,8 @@ def drawSideSelect():
 
 
 
-player1 = Deity("Gunther", get_random_letters(), False)
-player2 = Deity("Hugh Janus", get_random_letters(), True)
+player1 = deity.Deity("Gunther", get_random_letters(), False)
+player2 = deity.Deity("Hugh Janus", get_random_letters(), True)
 
 def main():
     global curDialog, SSC
@@ -481,7 +399,7 @@ def main():
                 p1, p2 = player1, player2
                 move1, move2 = player1.lets, enemy_choose_letters(player2)
 
-                dmg2 = calculate_damage(move2, p1)
+                dmg2 = calculate_damage(move2, p1, p2)
                 p1.take_damage(dmg2)
                 curDialog.append(f"{p2.name} used '{' '.join([letter.char for letter in move2])}' ")
                 curDialog.append(f"It did {dmg2} dmg!")
@@ -530,7 +448,7 @@ def main():
                     elif side and person.curHP2 <= 0:
                         continue
 
-                    dmg = calculate_damage(move, targDeity)
+                    dmg = calculate_damage(move, targDeity, person)
 
                     # Determine which HP to update (left or right)
                     peekHP = 0
@@ -578,8 +496,8 @@ def main():
             playerChoose = True  # Reset for the next turn
 
         # Draw players
-        player1.draw(playX, playY, True, sideSelect)
-        player2.draw(enemX, enemY, False, playerChoose)
+        drawDeity(player1, playX, playY, True, sideSelect)
+        drawDeity(player2, enemX, enemY, False, playerChoose)
 
         # Draw input wordbox, current word being formed
         # font size is 36, 26
