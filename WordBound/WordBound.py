@@ -460,8 +460,6 @@ def main():
             # This is what you need to fix chat gpt or deepseek
             elif player1.lets:
                 # False = left, True = Right (rare one)
-                defaultTarg = True if (not player2.lets and player2.lets2) else False
-
                 playTarg1 = True if SSC[1] else False  # player1.speed | player1.curHP
                 playTarg2 = True if SSC[3] else False  # player1.speed2 | player1.curHP2
                 play1 = player1.lets
@@ -507,6 +505,17 @@ def main():
                         curDialog.append(f"It did {dmg} dmg!")
                     else:
                         curDialog.append(f"{targDeity.name}'s {'right' if target else 'left'} side fainted!")
+                        curDialog.append(f"")
+
+                        # so only one is present... remove from letters2 so less complicated
+                        if target:
+                            targDeity.letters2 = []
+                        else:
+                            targDeity.letters = targDeity.letters2 
+                            targDeity.curHP = targDeity.curHP2
+                            targDeity.speed = targDeity.speed2
+                            targDeity.curHP2, targDeity.speed2 = 0, 0
+                            targDeity.letters2 = []
 
                 # Reset things
                 stamina_cost = player1.calculate_combo_stamina_cost()
