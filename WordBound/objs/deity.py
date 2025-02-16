@@ -15,7 +15,7 @@ def color_mapping(color_name):
         "yellow": (210, 210, 0), 
 
         # Magical/Special Types
-        "black":  (10, 10, 10), 
+        "black":  (25, 25, 25), 
         "white":  (220, 220, 220), 
         "grey":   (128, 128, 128), 
         "cyan":   (0, 255, 255), 
@@ -83,64 +83,36 @@ class Letter:
 
     
 
-
-
 class Deity:
-    def __init__(self, name, letters, startMultipleDebug):
+    def __init__(self, name, letters):
         self.name = name
         self.maxHP = 250
         self.maxSpeed = random.randint(50, 101)
 
-        if startMultipleDebug:
-            self.letters = letters[:3]  # List of Letter objects
-            self.letters2 = letters[3:]  # empty
+        self.letters = letters # What the deity can use
+        self.lets = []         # current move the player is choosing to do
 
-            calcHP = len(self.letters) / (len(self.letters)+len(self.letters2))
-            self.curHP = int(self.maxHP * calcHP)
-            self.curHP2 = int(self.maxHP - self.curHP)
+        self.curHP = self.maxHP
+        self.speed = self.maxSpeed
 
-            self.speed = int(self.maxSpeed * calcHP)
-            self.speed2 = int(self.maxSpeed - self.maxSpeed)
-        else:
-            self.letters = letters  # List of Letter objects
-            self.letters2 = []  # empty
-            self.curHP = self.maxHP
-            self.curHP2 = 0
-            self.speed = self.maxSpeed
-            self.speed2 = 0
-
-        self.comboStamina = 5
         self.physical = 100
         self.special = 100
         self.accuracy = 100
-        self.lets = []  # Initialize lets
-        self.lets2 = []  # Initialize lets
+        
+        self.comboStamina = 5
         self.battleType = self.randType()
+        self.battleColor = color_mapping(self.battleType)
 
     def take_damage(self, damage):
         self.curHP -= damage
         if self.curHP < 0:
             self.curHP = 0
 
-    def take_damage2(self, damage):
-        self.curHP2 -= damage
-        if self.curHP2 < 0:
-            self.curHP2 = 0
-
-    
-
-
-
     def calculate_combo_stamina_cost(self):
-        # Only calculate stamina cost if more than one letter is selected (from both lets and lets2)
-        if len(self.lets) + len(self.lets2) > 1:
-            # Combine both lets and lets2, and calculate the sum of tiers, skipping the first letter
-            combined_letters = self.lets[1:] + self.lets2[1:]
-            return sum(letter.tier for letter in combined_letters)  # Skip the first letter
+        if len(self.lets) > 1:
+            return sum(letter.tier for letter in self.lets[1:])  
         return 0  # No cost for a single letter
 
-
-    
     def update_stamina(self, cost):
         self.comboStamina -= cost
         if self.comboStamina < 0:

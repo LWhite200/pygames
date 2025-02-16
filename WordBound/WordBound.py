@@ -1,6 +1,7 @@
 import pygame # type: ignore
 import random
-from objs import deity
+import copy
+from objs import deity # the object classes 
 
 # Initialize PyGame
 pygame.init()
@@ -111,32 +112,30 @@ def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, play
         text = curFont.render(letter.char, True, border_color)
         screen.blit(text, (x + 10, y + 10))
 
+
+
     
 def drawDeity(deity, x, y, isPlayer1, playerChoose):
-        text = font.render(f"{deity.name} (HP: {deity.curHP})", True, color_mapping(deity.battleType))
-        if deity.letters2:
-            text = font.render(f"{deity.name} ({deity.curHP}) | ({deity.curHP2})", True, color_mapping(deity.battleType))
+        global player2
+        text = font.render(f"{deity.name} (HP: {deity.curHP})", True, deity.battleColor)
+
+        second = player2 if player2 and isPlayer1 else None
+        second = enemy2 if enemy2 and not isPlayer1 else None
+
+        if second:
+            text = font.render(f"{deity.name} ({deity.curHP}) | ({second.curHP})", True, deity.battleColor)
         screen.blit(text, (x - 10, y + 10))
 
         spaceBetweenGroups = 10  # The space between the two groups of letters
 
         # Draw letters in the first group (deity.letters), offset a bit to the left
         for i, letter in enumerate(deity.letters):
-            newX = x + i * 50 - 10  if not deity.letters2 else x + i * 50 - 10
+            newX = x + i * 50 - 10  if second else x + i * 50 - 10
             newY = y + 50
 
             mouse_pos = pygame.mouse.get_pos()
             hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
-            drawLetter(letter, newX, newY, letter in deity.lets or letter in deity.lets2, hovered, isPlayer1, playerChoose)
-
-        # Draw letters in the second group (deity.letters2), to the right of the first group
-        for i, letter in enumerate(deity.letters2):
-            newX = x + (len(deity.letters) * 50) + spaceBetweenGroups + i * 50  # Positioning to the right of the first group
-            newY = y + 50
-
-            mouse_pos = pygame.mouse.get_pos()
-            hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
-            drawLetter(letter, newX, newY, letter in deity.lets or letter in deity.lets2, hovered, isPlayer1, playerChoose)
+            drawLetter(letter, newX, newY, letter in deity.lets, hovered, isPlayer1, playerChoose)
 
         # Display combo stamina (for player1)
         if isPlayer1:
@@ -148,6 +147,24 @@ def drawDeity(deity, x, y, isPlayer1, playerChoose):
             color = GREEN if 0 < deity.comboStamina else RED
             stamina_text = font.render(f"Enemy Stamina: {deity.comboStamina}", True, color)
             screen.blit(stamina_text, (x + 20, y + 110))
+
+
+
+
+def drawDeity2(deity, x, y, isPlayer1, playerChoose):
+
+        # Since this only draws the second set of letters, do not need to have much
+
+        spaceBetweenGroups = 10
+
+        for i, letter in enumerate(deity.letters):
+            newX = x + i * 50 - 10
+            newY = y + 50
+
+            mouse_pos = pygame.mouse.get_pos()
+            hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
+            drawLetter(letter, newX, newY, letter in deity.lets, hovered, isPlayer1, playerChoose)
+
 
 def get_random_letters():
     letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
@@ -263,11 +280,22 @@ def drawSideSelect():
 
 
 
-player1 = deity.Deity("Gunther", get_random_letters(), False)
-player2 = deity.Deity("Hugh Janus", get_random_letters(), True)
+player1 = deity.Deity("Gunther", get_random_letters())
+player2 = copy.deepcopy(player1)
+
+player1.letters = player1.letters[:3]
+player2.letters = player2.letters[3:]
+
+
+enemy = deity.Deity("Hugh Janus", get_random_letters())
+enemy2 = copy.deepcopy(enemy)
+
+# Modify 'letters' separately for each object
+enemy.letters = enemy.letters[:3]
+enemy2.letters = enemy2.letters[3:]
 
 def main():
-    global curDialog, SSC
+    global curDialog, SSC, player1, player2, enemy, enemy2
 
     running = True
     playerChoose = True
@@ -347,21 +375,32 @@ def main():
 
                 # ---SPLIT--- This splits the letters into 2, ones not selected go to the other
                 if event.key == pygame.K_TAB and len(player1.lets) > 0 and not player1.letters2 and not sideSelect:  # player1.lists[-1].name == "H" and 
+
+                    p2Lets = []
+
                     for let in player1.letters[:]:
                         if let not in player1.lets:
-                            player1.letters2.append(let)  
+                            p2Lets.append(let)  
                             player1.letters.remove(let)
+
+
                     playerChoose = False # player chose to split (power of letter H)
                     playerSplit = True
-                    player1.update_stamina(1) # costs 1 stamina
-                    player1.lets = player1.lets2 = []
+                    # player1.update_stamina(1) # costs 1 stamina
+                    player1.lets = []
 
                     # Update stats in the split
                     calcHP = len(player1.letters) / (len(player1.letters)+len(player1.letters2))
                     player1.curHP = int(player1.maxHP * calcHP)
-                    player1.curHP2 = int(player1.maxHP - player1.curHP)
+                    curHP2 = int(player1.maxHP - player1.curHP)
                     player1.speed = int(player1.maxSpeed * calcHP)
-                    player1.speed2 = int(player1.maxSpeed - player1.maxSpeed)
+                    speed2 = int(player1.maxSpeed - player1.maxSpeed)
+
+                    # make it an entirely new deity
+                    player2 = copy.deepcopy(player1)
+                    player2.letters = p2Lets
+                    player2.curHP = curHP2
+                    player2.speed = speed2
 
                     curDialog.append("Player Split their words")
                     curDialog.append("Now You Can make 2 words")
@@ -388,7 +427,7 @@ def main():
                             # If more than 1 letter is selected and enough stamina
                             playerChoose = False
 
-                            if player1.lets and player2.letters2:
+                            if player1.lets and enemy.letters2:
                                 sideSelect = True
 
         draw_dialog()
@@ -396,16 +435,11 @@ def main():
         # Combate move decided ---END TURN---
         if not playerChoose and not curDialog and not sideSelect:
             if playerSplit:
-                p1, p2 = player1, player2
-                move1, move2 = player1.lets, enemy_choose_letters(player2)
-
-                dmg2 = calculate_damage(move2, p1, p2)
-                p1.take_damage(dmg2)
-                curDialog.append(f"{p2.name} used '{' '.join([letter.char for letter in move2])}' ")
-                curDialog.append(f"It did {dmg2} dmg!")
+                
+                # Let enemy attack the player???
             
                 player1.lets = []
-                player1.lets2 = []
+                player2.lets = []
                 playerSplit = False
 
 
@@ -419,22 +453,22 @@ def main():
 
                 enemTarg1 = False if len(player1.letters2) <= 0 else random.choice([False, True])  
                 enemTarg2 = False if len(player1.letters2) <= 0 else random.choice([False, True])  
-                enem1 = player2.letters
-                enem2 = player2.letters2 if player2.letters2 else None
+                enem1 = enemy.letters
+                enem2 = enemy.letters2 if enemy.letters2 else None
 
                 listBySpeed = []
 
                 # Add player moves to the list
                 if play1:
-                    listBySpeed.append((player1, play1, playTarg1, player1.speed, player2, False))
+                    listBySpeed.append((player1, play1, playTarg1, player1.speed, enemy, False))
                 if play2:
-                    listBySpeed.append((player1, play2, playTarg2, player1.speed2, player2, True))
+                    listBySpeed.append((player1, play2, playTarg2, player1.speed2, enemy, True))
 
                 # Add enemy moves to the list
                 if enem1:
-                    listBySpeed.append((player2, enem1, enemTarg1, player2.speed, player1, False))
+                    listBySpeed.append((enemy, enem1, enemTarg1, enemy.speed, player1, False))
                 if enem2:
-                    listBySpeed.append((player2, enem2, enemTarg2, player2.speed2, player1, True))
+                    listBySpeed.append((enemy, enem2, enemTarg2, enemy.speed2, player1, True))
 
                 # Sort by speed (higher speed first)
                 listBySpeed.sort(key=lambda x: x[3], reverse=True)
@@ -497,7 +531,12 @@ def main():
 
         # Draw players
         drawDeity(player1, playX, playY, True, sideSelect)
-        drawDeity(player2, enemX, enemY, False, playerChoose)
+        if player2:
+            drawDeity2(player2, playX + 10 + (len(player1.letters) * 50)   , playY, True, sideSelect)
+
+        drawDeity(enemy, enemX, enemY, False, playerChoose)
+        if enemy2:
+            drawDeity2(enemy2, enemX + 10 + (len(enemy.letters) * 50), enemY, False, playerChoose)
 
         # Draw input wordbox, current word being formed
         # font size is 36, 26
@@ -513,11 +552,11 @@ def main():
             screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
 
             # if there was a split, display the letters
-            if player1.letters2:
-                secondStart = ipX + (26 * len(player1.letters2))   + 80
-                input_box = pygame.Rect(secondStart, ipY, 26 * len(player1.letters2), 40)
+            if player2:
+                secondStart = ipX + (26 * len(player2.letters))   + 80
+                input_box = pygame.Rect(secondStart, ipY, 26 * len(player2.letters), 40)
                 pygame.draw.rect(screen, WHITE, input_box, 2)
-                ipw2 = "".join([letter.char for letter in player1.lets2])
+                ipw2 = "".join([letter.char for letter in player2.lets])
                 input_surface = font.render(ipw2, True, WHITE)
                 screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
         
@@ -525,10 +564,10 @@ def main():
         
 
         # Check for game over
-        if player1.curHP <= 0 and player1.curHP2 <= 0 and not haveWinner:
-            curDialog.append(f"{player2.name}   WINS!!!!")
+        if player1.curHP <= 0 and player2.curHP <= 0 and not haveWinner:
+            curDialog.append(f"{enemy.name}   WINS!!!!")
             haveWinner = True
-        elif player2.curHP <= 0 and player2.curHP2 <= 0 and not haveWinner:
+        elif enemy.curHP <= 0 and enemy2.curHP <= 0 and not haveWinner:
             curDialog.append(f"{player1.name}   WINS!!!!")
             haveWinner = True
 
