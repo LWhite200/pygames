@@ -276,21 +276,13 @@ def drawSideSelect():
         pygame.draw.rect(screen, backColor if not SSC[3] else selectedColor, (secondStart + 40, ipY + 45, 20, 20))
 
 
-
-
-
-
 player1 = deity.Deity("Gunther", get_random_letters())
 player2 = copy.deepcopy(player1)
-
 player1.letters = player1.letters[:3]
 player2.letters = player2.letters[3:]
 
-
 enemy = deity.Deity("Hugh Janus", get_random_letters())
 enemy2 = copy.deepcopy(enemy)
-
-# Modify 'letters' separately for each object
 enemy.letters = enemy.letters[:3]
 enemy2.letters = enemy2.letters[3:]
 
@@ -318,12 +310,11 @@ def main():
                         if curDialog:
                             curDialog.pop(0)
 
-
                     # ----------------------------------------------------------
                     # when multiple enemy out, which one to attack -- [BUTTONS CLICKS]
                     elif sideSelect:
                         ipX, ipY = 75, playY + buttonY
-                        secondStart = ipX + (26 * len(player1.letters2)) + 80 if player1.lets2 else None
+                        secondStart = ipX + (26 * len(player2.letters)) + 80 if player2.lets else None
                         if ipX <= event.pos[0] <= ipX + 20 and ipY + 45 <= event.pos[1] <= ipY + 65:
                             SSC[0] = not SSC[0]
                             SSC[1] = False
@@ -343,26 +334,26 @@ def main():
 
                         # Check for the first group of letters
                         for i, letter in enumerate(player1.letters):
-                            x = playX + i * 50 - 10  if not player1.letters2 else playX + i * 50 - 10
+                            x = playX + i * 50 - 10  if not player2.letters else playX + i * 50 - 10
                             y = playY + buttonY
 
                             if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                if letter not in player1.lets and letter not in player1.lets2:
+                                if letter not in player1.lets and letter not in player2.lets:
                                     player1.lets.append(letter)
                                 else:
                                     player1.lets.remove(letter)
 
                         # check the second group of letters
-                        if player1.letters2:
-                            for i, letter in enumerate(player1.letters2):
+                        if player2:
+                            for i, letter in enumerate(player2.letters):
                                 x = playX + (len(player1.letters) * 50) + 10 + i * 50
                                 y = playY + buttonY
 
                                 if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                    if letter not in player1.lets2 and letter not in player1.lets:
-                                        player1.lets2.append(letter)
+                                    if letter not in player2.lets and letter not in player2.lets:
+                                        player2.lets.append(letter)
                                     else:
-                                        player1.lets2.remove(letter)
+                                        player2.lets.remove(letter)
 
 
                 if event.button == 3:
@@ -449,12 +440,12 @@ def main():
                 playTarg1 = True if SSC[1] else False  
                 playTarg2 = True if SSC[3] else False  
                 play1 = player1.lets
-                play2 = player1.lets2 if player1.lets2 else None
+                play2 = player2.lets if player2 else None
 
-                enemTarg1 = False if len(player1.letters2) <= 0 else random.choice([False, True])  
-                enemTarg2 = False if len(player1.letters2) <= 0 else random.choice([False, True])  
+                enemTarg1 = False if len(player2.letters) <= 0 else random.choice([False, True])  
+                enemTarg2 = False if len(player2.letters) <= 0 else random.choice([False, True])  
                 enem1 = enemy.letters
-                enem2 = enemy.letters2 if enemy.letters2 else None
+                enem2 = enemy2.letters if enemy2.letters else None
 
                 listBySpeed = []
 
@@ -462,13 +453,13 @@ def main():
                 if play1:
                     listBySpeed.append((player1, play1, playTarg1, player1.speed, enemy, False))
                 if play2:
-                    listBySpeed.append((player1, play2, playTarg2, player1.speed2, enemy, True))
+                    listBySpeed.append((player2, play2, playTarg2, player2.speed, enemy, True))
 
                 # Add enemy moves to the list
                 if enem1:
                     listBySpeed.append((enemy, enem1, enemTarg1, enemy.speed, player1, False))
                 if enem2:
-                    listBySpeed.append((enemy, enem2, enemTarg2, enemy.speed2, player1, True))
+                    listBySpeed.append((enemy2, enem2, enemTarg2, enemy2.speed, player1, True))
 
                 # Sort by speed (higher speed first)
                 listBySpeed.sort(key=lambda x: x[3], reverse=True)
@@ -479,19 +470,14 @@ def main():
                     # If the current side is either null or knocked out
                     if not side and person.curHP <= 0:
                         continue
-                    elif side and person.curHP2 <= 0:
-                        continue
 
                     dmg = calculate_damage(move, targDeity, person)
 
                     # Determine which HP to update (left or right)
                     peekHP = 0
-                    if target:  # Target is right
-                        targDeity.take_damage2(dmg)  # Apply damage to the right side
-                        peekHP = targDeity.curHP2
-                    else:  # Target is left
-                        targDeity.take_damage(dmg)  # Apply damage to the left side
-                        peekHP = targDeity.curHP
+
+                    targDeity.take_damage(dmg)  # Apply damage to the left side
+                    peekHP = targDeity.curHP
 
                     # Update dialog based on the result
                     
@@ -499,7 +485,7 @@ def main():
                     curDialog.append(f"It did {dmg} dmg!")
 
                     if peekHP < 1:
-                        if targDeity.letters and targDeity.letters2:
+                        if targDeity.letters:
                             curDialog.append(f"{targDeity.name}'s {'right' if target else 'left'} side fainted!")
                             curDialog.append(f"")
                         else:
@@ -508,8 +494,11 @@ def main():
 
                         # so only one is present... remove from letters2 so less complicated
                         if target:
-                            targDeity.letters2 = []
+                            targDeity = None
                         else:
+                            if 
+
+
                             targDeity.letters = targDeity.letters2 
                             targDeity.curHP = targDeity.curHP2
                             targDeity.speed = targDeity.speed2
