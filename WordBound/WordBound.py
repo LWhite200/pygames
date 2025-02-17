@@ -186,17 +186,17 @@ buttonY = 50
 # This will store the state of the radio buttons: False (not clicked), True (clicked)
 SSC = [False, False, False, False]
 
-# word = word Attacking   |   opp = deity being attacked (left and right side have same type/defense)
-def calculate_damage(word, opp, play):
+# word = word Attacking   
+def calculate_damage(attacking, receiving):
     global curDialog
 
-    aboveOrBelow = sum(letter.power for letter in word)
+    aboveOrBelow = sum(letter.power for letter in attacking.lets)
     base_damage = 0 # sum(letter.power for letter in word)
     
-    for letter in word:
+    for letter in attacking.lets:
         curType = letter.battleType
         curDmg = letter.power
-        oppType = opp.battleType
+        oppType = receiving.battleType
         
         # Checks each type and adds or subracts accordingly
         if curType in weaknesses[oppType]:
@@ -214,6 +214,8 @@ def calculate_damage(word, opp, play):
         curDialog.append(f"")
 
     return base_damage
+
+
 
 curDialog = []
 
@@ -434,81 +436,66 @@ def main():
 
 
             # Player has their words and also which target to hit ----------------- 
-            elif player1.lets:
+            elif player1.lets or (player2 and player2.lets):
                 # False = left, True = Right (rare one)
                 playTarg1 = True if SSC[1] else False  
                 playTarg2 = True if SSC[3] else False  
-                play1 = player1.lets
-                play2 = player2.lets if player2 else None
 
-                enemTarg1 = False if len(player2.letters) <= 0 else random.choice([False, True])  
-                enemTarg2 = False if len(player2.letters) <= 0 else random.choice([False, True])  
-                enem1 = enemy.letters
-                enem2 = enemy2.letters if enemy2.letters else None
+                enemTarg1 = False if not player2 else random.choice([False, True])  
+                enemTarg2 = False if not player2 else random.choice([False, True])  
 
                 listBySpeed = []
 
-                # Add player moves to the list
-                if play1:
-                    listBySpeed.append((player1, play1, playTarg1, player1.speed, enemy, False))
-                if play2:
-                    listBySpeed.append((player2, play2, playTarg2, player2.speed, enemy, True))
+                if player1:
+                    listBySpeed.append((player1, playTarg1, False, False))
+                if player2:
+                    listBySpeed.append((player2, playTarg2, False, True))
 
-                # Add enemy moves to the list
-                if enem1:
-                    listBySpeed.append((enemy, enem1, enemTarg1, enemy.speed, player1, False))
-                if enem2:
-                    listBySpeed.append((enemy2, enem2, enemTarg2, enemy2.speed, player1, True))
+                if enemy:
+                    listBySpeed.append((enemy, enemTarg1, True, False))
+                if enemy:
+                    listBySpeed.append((enemy2, enemTarg2, True, True))
 
-                # Sort by speed (higher speed first)
-                listBySpeed.sort(key=lambda x: x[3], reverse=True)
+                #   --organize by speed later, idk what crahs bug---     listBySpeed.sort(key=lambda x: x[], reverse=True)
 
                 # Process each move
-                for person, move, target, speed, targDeity, side in listBySpeed:
+                for person, target, isTargPlayer, TargRightSide in listBySpeed:
                     
                     # If the current side is either null or knocked out
-                    if not side and person.curHP <= 0:
+                    if person.curHP <= 0 or target.curHP <= 0:
                         continue
 
-                    dmg = calculate_damage(move, targDeity, person)
+                    dmg = calculate_damage(person, target)
 
                     # Determine which HP to update (left or right)
                     peekHP = 0
 
-                    targDeity.take_damage(dmg)  # Apply damage to the left side
-                    peekHP = targDeity.curHP
+                    target.take_damage(dmg)  # Apply damage to the left side
+                    peekHP = target.curHP
 
                     # Update dialog based on the result
                     
-                    curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in move])}'")
+                    curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
                     curDialog.append(f"It did {dmg} dmg!")
 
                     if peekHP < 1:
-                        if targDeity.letters:
-                            curDialog.append(f"{targDeity.name}'s {'right' if target else 'left'} side fainted!")
-                            curDialog.append(f"")
-                        else:
-                            curDialog.append(f"{targDeity.name} fainted!")
-                            curDialog.append(f"")
-
-                        # so only one is present... remove from letters2 so less complicated
                         if target:
-                            targDeity = None
-                        else:
-                             
+                            curDialog.append(f"{target.name}'s fainted!")
+                            curDialog.append(f"")
 
-
-                            targDeity.letters = targDeity.letters2 
-                            targDeity.curHP = targDeity.curHP2
-                            targDeity.speed = targDeity.speed2
-                            targDeity.curHP2, targDeity.speed2 = 0, 0
-                            targDeity.letters2 = []
+                        #if TargRightSide:
+                        #    target = None
+                        if not TargRightSide:
+                            # If the left side died, move the left to the right
+                            point2 = player2 if isTargPlayer else enemy2
+                            target = copy.deepcopy(point2)
+                            point2 = None
 
                 # Reset things
-                stamina_cost = player1.calculate_combo_stamina_cost()
-                player1.update_stamina(stamina_cost)
+                player1.update_stamina(player1.calculate_combo_stamina_cost())
                 player1.lets = []
-                player1.lets2 = []
+                if player2:
+                    player2.lets = []
                 SSC = [False, False, False, False]
 
             else:
