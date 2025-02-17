@@ -179,7 +179,6 @@ def enemy_choose_letters(enemy):
     return chosen_letters
 
 
-
 playX, playY = 520, 432
 enemX, enemY = 40, 30
 buttonY = 50
@@ -277,9 +276,9 @@ def drawSideSelect():
 
 
 player1 = deity.Deity("Gunther", get_random_letters())
-player2 = copy.deepcopy(player1)
-player1.letters = player1.letters[:3]
-player2.letters = player2.letters[3:]
+player2 = None # copy.deepcopy(player1)
+#player1.letters = player1.letters[:3]
+#player2.letters = player2.letters[3:]
 
 enemy = deity.Deity("Hugh Janus", get_random_letters())
 enemy2 = copy.deepcopy(enemy)
@@ -334,11 +333,11 @@ def main():
 
                         # Check for the first group of letters
                         for i, letter in enumerate(player1.letters):
-                            x = playX + i * 50 - 10  if not player2.letters else playX + i * 50 - 10
+                            x = playX + i * 50 - 10  if not player2 else playX + i * 50 - 10
                             y = playY + buttonY
 
                             if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                if letter not in player1.lets and letter not in player2.lets:
+                                if letter not in player1.lets and letter and (not player2 or letter not in player2.lets):
                                     player1.lets.append(letter)
                                 else:
                                     player1.lets.remove(letter)
@@ -365,7 +364,7 @@ def main():
             elif event.type == pygame.KEYDOWN:
 
                 # ---SPLIT--- This splits the letters into 2, ones not selected go to the other
-                if event.key == pygame.K_TAB and len(player1.lets) > 0 and not player1.letters2 and not sideSelect:  # player1.lists[-1].name == "H" and 
+                if event.key == pygame.K_TAB and len(player1.lets) > 0 and not player2 and not sideSelect:  # player1.lists[-1].name == "H" and 
 
                     p2Lets = []
 
@@ -381,7 +380,7 @@ def main():
                     player1.lets = []
 
                     # Update stats in the split
-                    calcHP = len(player1.letters) / (len(player1.letters)+len(player1.letters2))
+                    calcHP = len(player1.letters) / (len(player1.letters)+len(p2Lets))
                     player1.curHP = int(player1.maxHP * calcHP)
                     curHP2 = int(player1.maxHP - player1.curHP)
                     player1.speed = int(player1.maxSpeed * calcHP)
@@ -496,7 +495,7 @@ def main():
                         if target:
                             targDeity = None
                         else:
-                            if 
+                             
 
 
                             targDeity.letters = targDeity.letters2 
