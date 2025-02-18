@@ -107,7 +107,7 @@ def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, play
             rect_size = 40
             color = letter.color1
         pygame.draw.rect(screen, color, (boxX, boxY, rect_size, rect_size))
-        border_color = (0, 155, 255) if selected else (255, 255, 255)
+        border_color = (0, 155, 255) if selected and isPlayer1 else (255, 255, 255)
         pygame.draw.rect(screen, border_color, (boxX, boxY, rect_size, rect_size), 3)
         text = curFont.render(letter.char, True, border_color)
         screen.blit(text, (x + 10, y + 10))
@@ -271,8 +271,8 @@ def drawSideSelect():
     pygame.draw.rect(screen, backColor if not SSC[1] else selectedColor, (ipX + 40, ipY + 45, 20, 20))
 
     # if you have multiple words
-    if player1.lets2:
-        secondStart = ipX + (26 * len(player1.letters2))   + 80
+    if player2 and player2.lets:
+        secondStart = ipX + (26 * len(player2.letters))   + 80
         pygame.draw.rect(screen, backColor if not SSC[2] else selectedColor, (secondStart, ipY + 45, 20, 20))
         pygame.draw.rect(screen, backColor if not SSC[3] else selectedColor, (secondStart + 40, ipY + 45, 20, 20))
 
@@ -312,17 +312,17 @@ def main():
                             curDialog.pop(0)
 
                     # ----------------------------------------------------------
-                    # when multiple enemy out, which one to attack -- [BUTTONS CLICKS]
+                    # When Multiple Enemies, select which side to attack [button on click ]
                     elif sideSelect:
                         ipX, ipY = 75, playY + buttonY
-                        secondStart = ipX + (26 * len(player2.letters)) + 80 if player2.lets else None
+                        secondStart = None if not (player2 and player2.lets) else ipX + (26 * len(player2.letters)) + 80
                         if ipX <= event.pos[0] <= ipX + 20 and ipY + 45 <= event.pos[1] <= ipY + 65:
                             SSC[0] = not SSC[0]
                             SSC[1] = False
                         elif ipX + 40 <= event.pos[0] <= ipX + 60 and ipY + 45 <= event.pos[1] <= ipY + 65:
                             SSC[1] = not SSC[1]  
                             SSC[0] = False
-                        if player1.lets2:
+                        if player2 and player2.lets:
                             if secondStart <= event.pos[0] <= secondStart + 20 and ipY + 45 <= event.pos[1] <= ipY + 65:
                                 SSC[2] = not SSC[2]  
                                 SSC[3] = False
@@ -406,7 +406,7 @@ def main():
                             curDialog.pop(0)
                     elif sideSelect:
                         if (SSC[0] or SSC[1]):
-                            if not player1.lets2 or (SSC[2] or SSC[3]):
+                            if not (player2 and player2.lets) or (SSC[2] or SSC[3]):
                                 sideSelect = False
                                 playerChoose = False
                             
@@ -419,7 +419,7 @@ def main():
                             # If more than 1 letter is selected and enough stamina
                             playerChoose = False
 
-                            if player1.lets and enemy.letters2:
+                            if (player1.lets or (player2 and player2.lets)) and enemy2:
                                 sideSelect = True
 
         draw_dialog()
@@ -437,12 +437,18 @@ def main():
 
             # Player has their words and also which target to hit ----------------- 
             elif player1.lets or (player2 and player2.lets):
-                # False = left, True = Right (rare one)
-                playTarg1 = True if SSC[1] else False  
-                playTarg2 = True if SSC[3] else False  
 
-                enemTarg1 = False if not player2 else random.choice([False, True])  
-                enemTarg2 = False if not player2 else random.choice([False, True])  
+                # Randomize enemy attack
+                enemy.lets = enemy_choose_letters(enemy)
+                if enemy2:
+                    enemy2.lets = enemy_choose_letters(enemy2)
+
+                # False = left, True = Right (rare one)
+                playTarg1 = enemy2 if SSC[1] else enemy 
+                playTarg2 = enemy2 if SSC[3] else enemy  
+
+                enemTarg1 = player1 if not player2 else random.choice([player1, player2])  
+                enemTarg2 = player1 if not player2 else random.choice([player1, player2])  
 
                 listBySpeed = []
 
@@ -453,7 +459,7 @@ def main():
 
                 if enemy:
                     listBySpeed.append((enemy, enemTarg1, True, False))
-                if enemy:
+                if enemy2:
                     listBySpeed.append((enemy2, enemTarg2, True, True))
 
                 #   --organize by speed later, idk what crahs bug---     listBySpeed.sort(key=lambda x: x[], reverse=True)
