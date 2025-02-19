@@ -120,7 +120,8 @@ def drawDeity(deity, x, y, isPlayer1, playerChoose):
         text = font.render(f"{deity.name} (HP: {deity.curHP})", True, deity.battleColor)
 
         second = player2 if player2 and isPlayer1 else None
-        second = enemy2 if enemy2 and not isPlayer1 else None
+        if not second:
+            second = enemy2 if enemy2 and not isPlayer1 else None
 
         if second:
             text = font.render(f"{deity.name} ({deity.curHP}) | ({second.curHP})", True, deity.battleColor)
@@ -489,13 +490,19 @@ def main():
                             curDialog.append(f"{target.name}'s fainted!")
                             curDialog.append(f"")
 
-                        #if TargRightSide:
-                        #    target = None
-                        if not TargRightSide:
-                            # If the left side died, move the left to the right
-                            point2 = player2 if isTargPlayer else enemy2
-                            target = copy.deepcopy(point2)
-                            point2 = None
+                        if isTargPlayer:
+                            if TargRightSide:
+                                player2 = None  # Remove player2
+                            else:
+                                player1 = player2  # Move player2 to player1's position
+                                player2 = None
+                        else:
+                            if TargRightSide:
+                                enemy2 = None  # Remove enemy2
+                            else:
+                                enemy = enemy2  # Move enemy2 to enemy's position
+                                enemy2 = None
+
 
                 # Reset things
                 player1.update_stamina(player1.calculate_combo_stamina_cost())
@@ -545,10 +552,10 @@ def main():
         
 
         # Check for game over
-        if player1.curHP <= 0 and player2.curHP <= 0 and not haveWinner:
+        if not player1 and not player2 and not haveWinner:
             curDialog.append(f"{enemy.name}   WINS!!!!")
             haveWinner = True
-        elif enemy.curHP <= 0 and enemy2.curHP <= 0 and not haveWinner:
+        elif not enemy and not enemy2 and not haveWinner:
             curDialog.append(f"{player1.name}   WINS!!!!")
             haveWinner = True
 
