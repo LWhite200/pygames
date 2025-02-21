@@ -220,6 +220,51 @@ def calculate_damage(attacking, receiving):
 
 curDialog = []
 
+def doCurTurn(person, target, isTargPlayer, TargRightSide):
+    global player1, player2, enemy, enemy2, curDialog
+
+    # If the current side is either null or knocked out
+    if person.curHP <= 0 or target.curHP <= 0:
+        return
+
+    dmg = calculate_damage(person, target)
+
+    # Determine which HP to update (left or right)
+    peekHP = 0
+
+    target.take_damage(dmg)  # Apply damage to the left side
+    peekHP = target.curHP
+
+    # Update dialog based on the result
+    curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
+    curDialog.append(f"It did {dmg} dmg!")
+
+    if peekHP < 1:
+        if target:
+            curDialog.append(f"{target.name}'s fainted!")
+            curDialog.append(f"")
+
+        if isTargPlayer:
+            if TargRightSide:
+                player2 = None  # Remove player2
+            else:
+                player1 = player2  # Move player2 to player1's position
+                player2 = None
+        else:
+            if TargRightSide:
+                enemy2 = None  # Remove enemy2
+            else:
+                enemy = enemy2  # Move enemy2 to enemy's position
+                enemy2 = None
+
+    # Reset things
+    # ---blank for now as how is the stamina undated, does each deity have unique???---    person.update_stamina(person.calculate_combo_stamina_cost())
+    person.lets = []
+
+
+
+
+
 # Where messages shown
 def draw_dialog():
     global curDialog
@@ -366,16 +411,24 @@ def main():
 
             elif event.type == pygame.KEYDOWN:
 
-                # ---SPLIT--- This splits the letters into 2, ones not selected go to the other
+                # ---SPLIT-----------------------------------------------------------------------------------------------------
                 if event.key == pygame.K_TAB and len(player1.lets) > 0 and not player2 and not sideSelect:  # player1.lists[-1].name == "H" and 
 
-                    p2Lets = []
+                    # let enemy attack first
+                    listBySpeed = []
+                    if enemy:
+                        listBySpeed.append((enemy, player1, True, False))
+                    if enemy2:
+                        listBySpeed.append((enemy2, player1, True, True))
+                    for person, target, isTargPlayer, TargRightSide in listBySpeed:
+                        doCurTurn(person, target, isTargPlayer, TargRightSide)
 
+
+                    p2Lets = []
                     for let in player1.letters[:]:
                         if let not in player1.lets:
                             p2Lets.append(let)  
                             player1.letters.remove(let)
-
 
                     playerChoose = False # player chose to split (power of letter H)
                     playerSplit = True
@@ -467,48 +520,9 @@ def main():
 
                 # Process each move
                 for person, target, isTargPlayer, TargRightSide in listBySpeed:
+                    doCurTurn(person, target, isTargPlayer, TargRightSide)
                     
-                    # If the current side is either null or knocked out
-                    if person.curHP <= 0 or target.curHP <= 0:
-                        continue
-
-                    dmg = calculate_damage(person, target)
-
-                    # Determine which HP to update (left or right)
-                    peekHP = 0
-
-                    target.take_damage(dmg)  # Apply damage to the left side
-                    peekHP = target.curHP
-
-                    # Update dialog based on the result
-                    
-                    curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
-                    curDialog.append(f"It did {dmg} dmg!")
-
-                    if peekHP < 1:
-                        if target:
-                            curDialog.append(f"{target.name}'s fainted!")
-                            curDialog.append(f"")
-
-                        if isTargPlayer:
-                            if TargRightSide:
-                                player2 = None  # Remove player2
-                            else:
-                                player1 = player2  # Move player2 to player1's position
-                                player2 = None
-                        else:
-                            if TargRightSide:
-                                enemy2 = None  # Remove enemy2
-                            else:
-                                enemy = enemy2  # Move enemy2 to enemy's position
-                                enemy2 = None
-
-
-                # Reset things
-                player1.update_stamina(player1.calculate_combo_stamina_cost())
-                player1.lets = []
-                if player2:
-                    player2.lets = []
+                
                 SSC = [False, False, False, False]
 
             else:
