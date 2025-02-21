@@ -416,9 +416,12 @@ def main():
 
                     # let enemy attack first
                     listBySpeed = []
+
                     if enemy:
+                        enemy.lets = enemy_choose_letters(enemy)
                         listBySpeed.append((enemy, player1, True, False))
                     if enemy2:
+                        enemy2.lets = enemy_choose_letters(enemy2)
                         listBySpeed.append((enemy2, player1, True, True))
                     for person, target, isTargPlayer, TargRightSide in listBySpeed:
                         doCurTurn(person, target, isTargPlayer, TargRightSide)
@@ -437,10 +440,13 @@ def main():
 
                     # Update stats in the split
                     calcHP = len(player1.letters) / (len(player1.letters)+len(p2Lets))
-                    player1.curHP = int(player1.maxHP * calcHP)
-                    curHP2 = int(player1.maxHP - player1.curHP)
-                    player1.speed = int(player1.maxSpeed * calcHP)
-                    speed2 = int(player1.maxSpeed - player1.maxSpeed)
+                    temp = player1.curHP
+                    player1.curHP = int(player1.curHP * calcHP)
+                    curHP2 = int(temp - player1.curHP)
+
+                    temp = player1.speed
+                    player1.speed += player1.speed - int(player1.speed * calcHP)
+                    speed2 = temp + int(temp * calcHP)
 
                     # make it an entirely new deity
                     player2 = copy.deepcopy(player1)

@@ -87,13 +87,11 @@ class Deity:
     def __init__(self, name, letters):
         self.name = name
         self.maxHP = 250
-        self.maxSpeed = random.randint(50, 101)
+        self.curHP = self.maxHP
+        self.speed = random.randint(50, 101)
 
         self.letters = letters # What the deity can use
         self.lets = []         # current move the player is choosing to do
-
-        self.curHP = self.maxHP
-        self.speed = self.maxSpeed
 
         self.physical = 100
         self.special = 100
