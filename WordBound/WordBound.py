@@ -313,8 +313,9 @@ def drawSideSelect():
     ipX, ipY = 75, playY + buttonY
     backColor = (125, 125, 125)
     selectedColor = (0, 155, 255)
-    pygame.draw.rect(screen, backColor if not SSC[0] else selectedColor, (ipX, ipY + 45, 20, 20))
-    pygame.draw.rect(screen, backColor if not SSC[1] else selectedColor, (ipX + 40, ipY + 45, 20, 20))
+    if player1.lets:
+        pygame.draw.rect(screen, backColor if not SSC[0] else selectedColor, (ipX, ipY + 45, 20, 20))
+        pygame.draw.rect(screen, backColor if not SSC[1] else selectedColor, (ipX + 40, ipY + 45, 20, 20))
 
     # if you have multiple words
     if player2 and player2.lets:
@@ -362,12 +363,15 @@ def main():
                     elif sideSelect:
                         ipX, ipY = 75, playY + buttonY
                         secondStart = None if not (player2 and player2.lets) else ipX + (26 * len(player2.letters)) + 80
-                        if ipX <= event.pos[0] <= ipX + 20 and ipY + 45 <= event.pos[1] <= ipY + 65:
-                            SSC[0] = not SSC[0]
-                            SSC[1] = False
-                        elif ipX + 40 <= event.pos[0] <= ipX + 60 and ipY + 45 <= event.pos[1] <= ipY + 65:
-                            SSC[1] = not SSC[1]  
-                            SSC[0] = False
+
+                        if player1 and player1.lets:
+                            if ipX <= event.pos[0] <= ipX + 20 and ipY + 45 <= event.pos[1] <= ipY + 65:
+                                SSC[0] = not SSC[0]
+                                SSC[1] = False
+                            elif ipX + 40 <= event.pos[0] <= ipX + 60 and ipY + 45 <= event.pos[1] <= ipY + 65:
+                                SSC[1] = not SSC[1]  
+                                SSC[0] = False
+
                         if player2 and player2.lets:
                             if secondStart <= event.pos[0] <= secondStart + 20 and ipY + 45 <= event.pos[1] <= ipY + 65:
                                 SSC[2] = not SSC[2]  
@@ -464,8 +468,13 @@ def main():
                         curDialog.pop(0) 
                         if curDialog:
                             curDialog.pop(0)
+
+                    # the aiming for side select, which letter's need which side----------
                     elif sideSelect:
-                        if (SSC[0] or SSC[1]):
+                        # probably not the best way
+
+                        # check not None/null
+                        if ((not player1.lets or (SSC[0] or SSC[1])) and (not (player2 and player2.lets) or (SSC[2] or SSC[3]))):
                             if not (player2 and player2.lets) or (SSC[2] or SSC[3]):
                                 sideSelect = False
                                 playerChoose = False
@@ -512,14 +521,14 @@ def main():
 
                 listBySpeed = []
 
-                if player1:
+                if player1 and player1.lets:
                     listBySpeed.append((player1, playTarg1, False, False))
-                if player2:
+                if player2 and player2.lets:
                     listBySpeed.append((player2, playTarg2, False, True))
 
-                if enemy:
+                if enemy and enemy.lets:
                     listBySpeed.append((enemy, enemTarg1, True, False))
-                if enemy2:
+                if enemy2 and enemy2.lets:
                     listBySpeed.append((enemy2, enemTarg2, True, True))
 
                 #   --organize by speed later, idk what crahs bug---     listBySpeed.sort(key=lambda x: x[], reverse=True)
@@ -529,7 +538,7 @@ def main():
                     doCurTurn(person, target, isTargPlayer, TargRightSide)
                     
                 
-                SSC = [False, False, False, False]
+                SSC = [None, None, None, None]
 
             else:
                 curDialog.append("No letters selected!")
