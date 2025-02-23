@@ -323,19 +323,52 @@ def drawSideSelect():
         pygame.draw.rect(screen, backColor if not SSC[2] else selectedColor, (secondStart, ipY + 45, 20, 20))
         pygame.draw.rect(screen, backColor if not SSC[3] else selectedColor, (secondStart + 40, ipY + 45, 20, 20))
 
+player1, player2 = None, None
+enemy, enemy2 = None, None
+playerTeam, enemyTeam = [], []
 
-player1 = deity.Deity("Gunther", get_random_letters())
-player2 = None # copy.deepcopy(player1)
-#player1.letters = player1.letters[:3]
-#player2.letters = player2.letters[3:]
+def loadTeams():
+    global player1, player2, enemy, enemy2, playerTeam, enemyTeam
 
-enemy = deity.Deity("Hugh Janus", get_random_letters())
-enemy2 = copy.deepcopy(enemy)
-enemy.letters = enemy.letters[:3]
-enemy2.letters = enemy2.letters[3:]
+    player1 = deity.Deity("Gunther", get_random_letters())
+    pD3 = deity.Deity("Gpla2", get_random_letters())
+    playerTeam = [player1, pD3]
+    print(f"playerTeam length: {len(playerTeam)} {playerTeam[1].name}")
+
+    enemy = deity.Deity("Hugh Janus", get_random_letters())
+    en2 = deity.Deity("en2", get_random_letters())
+    enemyTeam = [enemy, en2]
+    # split afterwards, may start split, but not right now
+    enemy2 = copy.deepcopy(enemy)
+    enemy.letters = enemy.letters[:3]
+    enemy2.letters = enemy2.letters[3:]
+
+def switch(isPlayer, newIdx):
+    global player1, player2, enemy, enemy2, playerTeam, enemyTeam
+
+    team = playerTeam if isPlayer else enemyTeam
+    person = player1 if isPlayer else enemy
+    person2 = player2 if isPlayer else enemy2
+
+    # Store combined stats before switching
+    if person2:
+        team[0].curHP = person.curHP + person2.curHP
+        team[0].comboStamina = person.comboStamina + person2.comboStamina
+
+    team[0], team[newIdx] = team[newIdx], team[0]
+
+    # Update global references
+    if isPlayer:
+        player1 = team[0]
+        player2 = None 
+    else:
+        enemy = team[0]
+        enemy2 = None
 
 def main():
     global curDialog, SSC, player1, player2, enemy, enemy2
+    loadTeams()
+    switch(True, 1)
 
     running = True
     playerChoose = True
@@ -474,6 +507,7 @@ def main():
                         # probably not the best way
 
                         # check not None/null
+                        # perhaps check if .lets not null and contains 'a' or 'b'?????????
                         if ((not player1.lets or (SSC[0] or SSC[1])) and (not (player2 and player2.lets) or (SSC[2] or SSC[3]))):
                             if not (player2 and player2.lets) or (SSC[2] or SSC[3]):
                                 sideSelect = False
