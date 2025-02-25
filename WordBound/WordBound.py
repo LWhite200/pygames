@@ -350,8 +350,13 @@ def switch(isPlayer, newIdx):
     person = player1 if isPlayer else enemy
     person2 = player2 if isPlayer else enemy2
 
+    for let in person.lets[:]: 
+        person.lets.remove(let)
+
     # Store combined stats before switching
     if person2:
+        for let in person2.lets[:]:
+            person2.lets.remove(let)
         team[0].curHP = person.curHP + person2.curHP
         team[0].comboStamina = person.comboStamina + person2.comboStamina
 
@@ -365,6 +370,9 @@ def switch(isPlayer, newIdx):
         enemy = team[0]
         enemy2 = None
 
+# make buttons for splitting, switching, retreat?
+# screen to see your team
+
 def main():
     global curDialog, SSC, player1, player2, enemy, enemy2
     loadTeams()
@@ -375,6 +383,8 @@ def main():
     playerSplit = False
     sideSelect = False
     haveWinner = False
+    switchPla = False
+    switchPlaNum = 1
     while running:
         screen.fill(BLACK)
 
@@ -390,6 +400,10 @@ def main():
                         curDialog.pop(0) 
                         if curDialog:
                             curDialog.pop(0)
+
+                    elif switchPla:
+                        switch(True, switchPlaNum)
+
 
                     # ----------------------------------------------------------
                     # When Multiple Enemies, select which side to attack [button on click ]
@@ -493,6 +507,11 @@ def main():
 
                     curDialog.append("Player Split their words")
                     curDialog.append("Now You Can make 2 words")
+
+                if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT :
+                    # player1.lets.remove(letter)--------------the player stores the currently selected letters
+                    print("shift pressed debug button")
+                    switch(True, 1)
 
                 # [SPACE]
                 if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
