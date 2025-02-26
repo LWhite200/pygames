@@ -343,6 +343,36 @@ def loadTeams():
     enemy.letters = enemy.letters[:3]
     enemy2.letters = enemy2.letters[3:]
 
+
+def separateDeity():
+    global player1, player2
+    
+    p2Lets = []
+    for let in player1.letters[:]:
+        if let not in player1.lets:
+            p2Lets.append(let)  
+            player1.letters.remove(let)
+
+    
+    # player1.update_stamina(1) # costs 1 stamina
+    player1.lets = []
+
+    # Update stats in the split
+    calcHP = len(player1.letters) / (len(player1.letters)+len(p2Lets))
+    temp = player1.curHP
+    player1.curHP = int(player1.curHP * calcHP)
+    curHP2 = int(temp - player1.curHP)
+
+    temp = player1.speed
+    player1.speed += player1.speed - int(player1.speed * calcHP)
+    speed2 = temp + int(temp * calcHP)
+
+    # make it an entirely new deity
+    player2 = copy.deepcopy(player1)
+    player2.letters = p2Lets
+    player2.curHP = curHP2
+    player2.speed = speed2
+
 def switch(isPlayer, newIdx):
     global player1, player2, enemy, enemy2, playerTeam, enemyTeam
 
@@ -370,13 +400,113 @@ def switch(isPlayer, newIdx):
         enemy = team[0]
         enemy2 = None
 
+
+
+
+
+switchSelected = -1
+ppXX, ppYY = WIDTH // 2 - 100, HEIGHT // 2 + 100
+
+def DeitySelect():
+    global switchSelected
+    
+    screen.fill((204, 85, 0))
+    
+    x, y = 200, 50  # Adjust y to avoid overlap
+    xSpace, ySpace = 10, 10  # for text spacing
+    button_height = 80  # Adjust button height for visibility
+    button_width = 400  # Adjust button width
+    
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()[0]
+    
+    for i, deity in enumerate(playerTeam):
+        button_rect = pygame.Rect(x, y, button_width, button_height)
+        button_hover = button_rect.collidepoint(mouse_x, mouse_y)
+        
+        # Check if the mouse is hovering over the button and left click
+        if button_hover and click:
+            switchSelected = i
+        
+        # Background color logic
+        backColor = (0, 125, 50) if button_hover and switchSelected == -1 else (0, 0, 125)
+        backColor = (0, 0, 0) if i == switchSelected else backColor
+        pygame.draw.rect(screen, backColor, button_rect)
+        pygame.draw.rect(screen, (0, 0, 0), button_rect, 2)  # Black outline
+        
+        # Display the button name and HP
+        input_word = f"{deity.name} HP: {deity.curHP}/{deity.maxHP}"
+        input_surface = font.render(input_word, True, WHITE)
+        screen.blit(input_surface, (x + xSpace, y + ySpace))
+        
+        y += button_height + 10  # Move y for the next button
+    
+    if switchSelected != -1:
+        # Confirmation box
+        confirm_rect = pygame.Rect(100, 75, 600, 450)
+        pygame.draw.rect(screen, (255, 155, 0), confirm_rect)
+        pygame.draw.rect(screen, (0, 0, 0), confirm_rect, 2)  # Black outline
+        
+        # Display message
+        message = "Do You Want To Switch?"
+        message_surface = font.render(message, True, WHITE)
+        screen.blit(message_surface, (WIDTH // 2 - 100, HEIGHT // 2 - 100))
+
+        # Get mouse position
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        
+        # Yes, No, and Yes Separate buttons below
+        yes_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2, 80, 40)
+        no_rect = pygame.Rect(WIDTH // 2 + 20, HEIGHT // 2, 80, 40)
+        
+        # Change color if hovered
+        yes_color = (0, 100, 0) if yes_rect.collidepoint(mouse_x, mouse_y) else (0, 200, 0)
+        no_color = (100, 0, 0) if no_rect.collidepoint(mouse_x, mouse_y) else (200, 0, 0)
+        
+        pygame.draw.rect(screen, yes_color, yes_rect)
+        pygame.draw.rect(screen, no_color, no_rect)
+        
+        pygame.draw.rect(screen, (0, 0, 0), yes_rect, 2)  # Black outline
+        pygame.draw.rect(screen, (0, 0, 0), no_rect, 2)  # Black outline
+        
+        yes_surface = font.render("Yes", True, WHITE)
+        no_surface = font.render("No", True, WHITE)
+        
+        screen.blit(yes_surface, (WIDTH // 2 - 80, HEIGHT // 2 + 10))
+        screen.blit(no_surface, (WIDTH // 2 + 40, HEIGHT // 2 + 10))
+
+        # Draw the lettes the user can separate 
+        
+        drawDeity(playerTeam[switchSelected], ppXX, ppYY, True, False)
+
+        if yes_rect.collidepoint(mouse_x, mouse_y) and click:
+            # Perform the switch logic (implement switching logic here)
+            print(f"Switched to {playerTeam[switchSelected].name}")
+            p2Lets = []
+            for let in playerTeam[switchSelected].lets[:]:
+                    p2Lets.append(let)  
+
+            switch(True, switchSelected)
+
+            for let in p2Lets:
+                player1.lets.append(let)
+
+            if player1.lets:
+                separateDeity()
+
+            switchSelected = -1  # Reset selection after switching
+        
+        if no_rect.collidepoint(mouse_x, mouse_y) and click:
+            for let in playerTeam[switchSelected].lets[:]: 
+                playerTeam[switchSelected].lets.remove(let)
+            switchSelected = -1  # Cancel selection
+
 # make buttons for splitting, switching, retreat?
 # screen to see your team
 
 def main():
     global curDialog, SSC, player1, player2, enemy, enemy2
     loadTeams()
-    switch(True, 1)
 
     running = True
     playerChoose = True
@@ -385,6 +515,8 @@ def main():
     haveWinner = False
     switchPla = False
     switchPlaNum = 1
+
+    showSwitchMenu = False
     while running:
         screen.fill(BLACK)
 
@@ -430,28 +562,41 @@ def main():
 
                     elif playerChoose:
 
-                        # Check for the first group of letters
-                        for i, letter in enumerate(player1.letters):
-                            x = playX + i * 50 - 10  if not player2 else playX + i * 50 - 10
-                            y = playY + buttonY
-
-                            if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                if letter not in player1.lets and letter and (not player2 or letter not in player2.lets):
-                                    player1.lets.append(letter)
-                                else:
-                                    player1.lets.remove(letter)
-
-                        # check the second group of letters
-                        if player2:
-                            for i, letter in enumerate(player2.letters):
-                                x = playX + (len(player1.letters) * 50) + 10 + i * 50
-                                y = playY + buttonY
-
+                        if showSwitchMenu and (switchSelected > -1):
+                            for i, letter in enumerate(playerTeam[switchSelected].letters):
+                                x = ppXX + i * 50 - 10
+                                y = ppYY + buttonY
                                 if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                    if letter not in player2.lets and letter not in player2.lets:
-                                        player2.lets.append(letter)
+                                    if letter not in playerTeam[switchSelected].lets:
+                                        playerTeam[switchSelected].lets.append(letter)
                                     else:
-                                        player2.lets.remove(letter)
+                                        playerTeam[switchSelected].lets.remove(letter)
+
+
+
+                        elif not showSwitchMenu:
+                            for i, letter in enumerate(player1.letters):
+
+                                    x = playX + i * 50 - 10  if not player2 else playX + i * 50 - 10
+                                    y = playY + buttonY
+
+                                    if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
+                                        if letter not in player1.lets and letter and (not player2 or letter not in player2.lets):
+                                            player1.lets.append(letter)
+                                        else:
+                                            player1.lets.remove(letter)
+
+                            # check the second group of letters
+                            if player2:
+                                for i, letter in enumerate(player2.letters):
+                                    x = playX + (len(player1.letters) * 50) + 10 + i * 50
+                                    y = playY + buttonY
+
+                                    if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
+                                        if letter not in player2.lets and letter not in player2.lets:
+                                            player2.lets.append(letter)
+                                        else:
+                                            player2.lets.remove(letter)
 
 
                 if event.button == 3:
@@ -463,7 +608,8 @@ def main():
             elif event.type == pygame.KEYDOWN:
 
                 # ---SPLIT-----------------------------------------------------------------------------------------------------
-                if event.key == pygame.K_TAB and len(player1.lets) > 0 and not player2 and not sideSelect:  # player1.lists[-1].name == "H" and 
+                 # ---SPLIT-----------------------------------------------------------------------------------------------------
+                if event.key == pygame.K_TAB and len(player1.lets) > 0 and not player2 and not sideSelect and not showSwitchMenu:  # player1.lists[-1].name == "H" and 
 
                     # let enemy attack first
                     listBySpeed = []
@@ -477,44 +623,19 @@ def main():
                     for person, target, isTargPlayer, TargRightSide in listBySpeed:
                         doCurTurn(person, target, isTargPlayer, TargRightSide)
 
-
-                    p2Lets = []
-                    for let in player1.letters[:]:
-                        if let not in player1.lets:
-                            p2Lets.append(let)  
-                            player1.letters.remove(let)
-
                     playerChoose = False # player chose to split (power of letter H)
                     playerSplit = True
-                    # player1.update_stamina(1) # costs 1 stamina
-                    player1.lets = []
+                    separateDeity()
 
-                    # Update stats in the split
-                    calcHP = len(player1.letters) / (len(player1.letters)+len(p2Lets))
-                    temp = player1.curHP
-                    player1.curHP = int(player1.curHP * calcHP)
-                    curHP2 = int(temp - player1.curHP)
 
-                    temp = player1.speed
-                    player1.speed += player1.speed - int(player1.speed * calcHP)
-                    speed2 = temp + int(temp * calcHP)
-
-                    # make it an entirely new deity
-                    player2 = copy.deepcopy(player1)
-                    player2.letters = p2Lets
-                    player2.curHP = curHP2
-                    player2.speed = speed2
-
-                    curDialog.append("Player Split their words")
-                    curDialog.append("Now You Can make 2 words")
+                    
 
                 if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT :
                     # player1.lets.remove(letter)--------------the player stores the currently selected letters
-                    print("shift pressed debug button")
-                    switch(True, 1)
+                    showSwitchMenu = not showSwitchMenu
 
                 # [SPACE]
-                if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                if (event.key == pygame.K_RETURN or event.key == pygame.K_SPACE) and not showSwitchMenu: 
 
                     if curDialog:
                         curDialog.pop(0) 
@@ -547,7 +668,7 @@ def main():
         draw_dialog()
 
         # Combate move decided ---END TURN---
-        if not playerChoose and not curDialog and not sideSelect:
+        if not playerChoose and not curDialog and not sideSelect and not showSwitchMenu:
             if playerSplit:
                 
                 # Let enemy attack the player???
@@ -599,36 +720,40 @@ def main():
 
             playerChoose = True  # Reset for the next turn
 
-        # Draw players
-        drawDeity(player1, playX, playY, True, sideSelect)
-        if player2:
-            drawDeity2(player2, playX + 10 + (len(player1.letters) * 50)   , playY, True, sideSelect)
 
-        drawDeity(enemy, enemX, enemY, False, playerChoose)
-        if enemy2:
-            drawDeity2(enemy2, enemX + 10 + (len(enemy.letters) * 50), enemY, False, playerChoose)
-
-        # Draw input wordbox, current word being formed
-        # font size is 36, 26
-        if sideSelect:
-            drawSideSelect()
-
-        if not curDialog and not haveWinner:
-            ipX, ipY = 75, playY + buttonY
-            input_box = pygame.Rect(ipX, ipY, 26 * len(player1.letters), 40)
-            pygame.draw.rect(screen, WHITE, input_box, 2)
-            input_word = "".join([letter.char for letter in player1.lets])
-            input_surface = font.render(input_word, True, WHITE)
-            screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
-
-            # if there was a split, display the letters
+        # display things
+        if not showSwitchMenu:
+            drawDeity(player1, playX, playY, True, sideSelect)
             if player2:
-                secondStart = ipX + (26 * len(player2.letters))   + 80
-                input_box = pygame.Rect(secondStart, ipY, 26 * len(player2.letters), 40)
+                drawDeity2(player2, playX + 10 + (len(player1.letters) * 50)   , playY, True, sideSelect)
+
+            drawDeity(enemy, enemX, enemY, False, playerChoose)
+            if enemy2:
+                drawDeity2(enemy2, enemX + 10 + (len(enemy.letters) * 50), enemY, False, playerChoose)
+
+            # Draw input wordbox, current word being formed
+            # font size is 36, 26
+            if sideSelect:
+                drawSideSelect()
+
+            if not curDialog and not haveWinner:
+                ipX, ipY = 75, playY + buttonY
+                input_box = pygame.Rect(ipX, ipY, 26 * len(player1.letters), 40)
                 pygame.draw.rect(screen, WHITE, input_box, 2)
-                ipw2 = "".join([letter.char for letter in player2.lets])
-                input_surface = font.render(ipw2, True, WHITE)
+                input_word = "".join([letter.char for letter in player1.lets])
+                input_surface = font.render(input_word, True, WHITE)
                 screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
+
+                # if there was a split, display the letters
+                if player2:
+                    secondStart = ipX + (26 * len(player2.letters))   + 80
+                    input_box = pygame.Rect(secondStart, ipY, 26 * len(player2.letters), 40)
+                    pygame.draw.rect(screen, WHITE, input_box, 2)
+                    ipw2 = "".join([letter.char for letter in player2.lets])
+                    input_surface = font.render(ipw2, True, WHITE)
+                    screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
+        else:
+            DeitySelect()
         
             
         
