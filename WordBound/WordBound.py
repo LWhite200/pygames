@@ -330,14 +330,15 @@ playerTeam, enemyTeam = [], []
 def loadTeams():
     global player1, player2, enemy, enemy2, playerTeam, enemyTeam
 
-    player1 = deity.Deity("Gunther", get_random_letters())
+    pD1 = deity.Deity("Gunther", get_random_letters())
     pD3 = deity.Deity("Gpla2", get_random_letters())
-    playerTeam = [player1, pD3]
-    print(f"playerTeam length: {len(playerTeam)} {playerTeam[1].name}")
+    playerTeam = [pD1, pD3]
+    player1 = copy.deepcopy(playerTeam[0]) # must make deep copy
 
-    enemy = deity.Deity("Hugh Janus", get_random_letters())
+    en1= deity.Deity("Hugh Janus", get_random_letters())
     en2 = deity.Deity("en2", get_random_letters())
-    enemyTeam = [enemy, en2]
+    enemyTeam = [en1, en2]
+    enemy = copy.deepcopy(enemyTeam[0])
     # split afterwards, may start split, but not right now
     enemy2 = copy.deepcopy(enemy)
     enemy.letters = enemy.letters[:3]
@@ -373,6 +374,8 @@ def separateDeity():
     player2.curHP = curHP2
     player2.speed = speed2
 
+
+
 def switch(isPlayer, newIdx):
     global player1, player2, enemy, enemy2, playerTeam, enemyTeam
 
@@ -380,32 +383,36 @@ def switch(isPlayer, newIdx):
     person = player1 if isPlayer else enemy
     person2 = player2 if isPlayer else enemy2
 
-    for let in person.lets[:]: 
-        person.lets.remove(let)
+    totalHP = 0
+    totalStam = 0
 
-    # Store combined stats before switching
+    # Get hp, stamina, ect. that changes
+    totalHP += person.curHP
+    totalStam += person.comboStamina
     if person2:
-        for let in person2.lets[:]:
-            person2.lets.remove(let)
-        team[0].curHP = person.curHP + person2.curHP
-        team[0].comboStamina = person.comboStamina + person2.comboStamina
+        totalHP += person2.curHP
+        totalStam += person2.comboStamina
+    team[0].curHP = totalHP
+    team[0].comboStamina = totalStam
 
+    # flip flop them
     team[0], team[newIdx] = team[newIdx], team[0]
 
     # Update global references
     if isPlayer:
-        player1 = team[0]
+        player1 = copy.deepcopy(team[0])
         player2 = None 
     else:
-        enemy = team[0]
+        enemy = copy.deepcopy(team[0])
         enemy2 = None
 
 
 
 
 
+
 switchSelected = -1
-ppXX, ppYY = WIDTH // 2 - 100, HEIGHT // 2 + 100
+ppXX, ppYY = WIDTH // 2 - 100, HEIGHT // 2 + 70
 
 def DeitySelect():
     global switchSelected
@@ -494,7 +501,7 @@ def DeitySelect():
             if player1.lets:
                 separateDeity()
 
-            switchSelected = -1  # Reset selection after switching
+            switchSelected = -2  # Reset selection after switching
         
         if no_rect.collidepoint(mouse_x, mouse_y) and click:
             for let in playerTeam[switchSelected].lets[:]: 
@@ -505,7 +512,7 @@ def DeitySelect():
 # screen to see your team
 
 def main():
-    global curDialog, SSC, player1, player2, enemy, enemy2
+    global curDialog, SSC, player1, player2, enemy, enemy2, switchSelected
     loadTeams()
 
     running = True
@@ -513,12 +520,20 @@ def main():
     playerSplit = False
     sideSelect = False
     haveWinner = False
-    switchPla = False
-    switchPlaNum = 1
 
     showSwitchMenu = False
     while running:
         screen.fill(BLACK)
+
+        # exit from switching
+        if showSwitchMenu and switchSelected == -2:
+            showSwitchMenu = False
+            switchSelected = -1
+            curDialog.append("Player Switched Deities!")
+            if player2:
+                curDialog.append("They also split in 2!")
+            else:
+                curDialog.append("")
 
         # Handle player input
         for event in pygame.event.get():
@@ -532,10 +547,6 @@ def main():
                         curDialog.pop(0) 
                         if curDialog:
                             curDialog.pop(0)
-
-                    elif switchPla:
-                        switch(True, switchPlaNum)
-
 
                     # ----------------------------------------------------------
                     # When Multiple Enemies, select which side to attack [button on click ]
