@@ -34,7 +34,7 @@ class Letter:
         self.color1 = color_mapping(self.battleType)
         self.tier = random.randint(0, 2)
 
-        self.power = 50 if self.char in ["A", "B"] else 5
+        self.power = 5550 if self.char in ["A", "B"] else 5
         self.statChange = "" if self.char in ["A", "B"] else self.getStatChange(self.char)
 
         self.accuracy = 100

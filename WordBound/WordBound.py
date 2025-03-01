@@ -39,6 +39,8 @@ ppXX, ppYY = WIDTH // 2 - 100, HEIGHT // 2 + 70
 
 curDialog = []
 
+checkGameDone = False
+
 def color_mapping(color_name):
     color_dict = {
 
@@ -108,11 +110,11 @@ resistances = {
     "maroon": ["brown", "lime", "cyan"], 
 }
 
-def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, playerChoose=True):
+def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, playerTurn=True):
         global curDialog
         boxX, boxY = x, y
         curFont = font
-        if hovered and not selected and isPlayer1 and not playerChoose and not curDialog:
+        if hovered and not selected and isPlayer1 and not playerTurn and not curDialog:
             x -= 4
             y -= 4
             curFont = bigfont
@@ -132,7 +134,7 @@ def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, play
 
 
     
-def drawDeity(deity, x, y, isPlayer1, playerChoose):
+def drawDeity(deity, x, y, isPlayer1, playerTurn):
         global player2
         text = font.render(f"{deity.name} (HP: {deity.curHP})", True, deity.battleColor)
 
@@ -153,35 +155,30 @@ def drawDeity(deity, x, y, isPlayer1, playerChoose):
 
             mouse_pos = pygame.mouse.get_pos()
             hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
-            drawLetter(letter, newX, newY, letter in deity.lets, hovered, isPlayer1, playerChoose)
+            drawLetter(letter, newX, newY, letter in deity.lets, hovered, isPlayer1, playerTurn)
 
         # Display combo stamina (for player1)
-        if isPlayer1:
+        if isPlayer1 and player1:
             stamina_cost = player1.calculate_combo_stamina_cost()
             color = GREEN if stamina_cost <= deity.comboStamina else RED
             stamina_text = font.render(f"Combo Cost: {stamina_cost} / {deity.comboStamina}", True, color)
-            screen.blit(stamina_text, (x + 20, y + 110))
+            screen.blit(stamina_text, (x - 10, y + 110))
         else:
             color = GREEN if 0 < deity.comboStamina else RED
             stamina_text = font.render(f"Enemy Stamina: {deity.comboStamina}", True, color)
-            screen.blit(stamina_text, (x + 20, y + 110))
+            screen.blit(stamina_text, (x - 10, y + 110))
 
 
 
 
-def drawDeity2(deity, x, y, isPlayer1, playerChoose):
-
-        # Since this only draws the second set of letters, do not need to have much
-
-        spaceBetweenGroups = 10
-
+def drawDeity2(deity, x, y, isPlayer1, playerTurn):
         for i, letter in enumerate(deity.letters):
             newX = x + i * 50 - 10
             newY = y + 50
 
             mouse_pos = pygame.mouse.get_pos()
             hovered = newX <= mouse_pos[0] <= newX + 40 and newY <= mouse_pos[1] <= newY + 40
-            drawLetter(letter, newX, newY, letter in deity.lets, hovered, isPlayer1, playerChoose)
+            drawLetter(letter, newX, newY, letter in deity.lets, hovered, isPlayer1, playerTurn)
 
 
 def get_random_letters():
@@ -234,8 +231,10 @@ def calculate_damage(attacking, receiving):
 
 
 
-def doCurTurn(person, target, isTargPlayer, TargRightSide):
-    global player1, player2, enemy, enemy2, curDialog
+def doCurTurn(person, target, isTargPlayer, SecondTarg):
+    global player1, player2, enemy, enemy2, curDialog, playerTeam, enemyTeam
+
+    targTeam = playerTeam if isTargPlayer else enemyTeam
 
     # If the current side is either null or knocked out
     if person.curHP <= 0 or target.curHP <= 0:
@@ -249,6 +248,10 @@ def doCurTurn(person, target, isTargPlayer, TargRightSide):
     target.take_damage(dmg)  # Apply damage to the left side
     peekHP = target.curHP
 
+    targTeam[0].curHP -= dmg
+    if targTeam[0].curHP < 0:
+        targTeam[0].curHP = 0
+
     # Update dialog based on the result
     curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
     curDialog.append(f"It did {dmg} dmg!")
@@ -259,16 +262,21 @@ def doCurTurn(person, target, isTargPlayer, TargRightSide):
             curDialog.append(f"")
 
         if isTargPlayer:
-            if TargRightSide:
+            if SecondTarg:
+                print("is, second")
                 player2 = None  # Remove player2
             else:
-                player1 = player2  # Move player2 to player1's position
+                print("is, first")
+                player1 = copy.deepcopy(player2)  # Move player2 to player1's position
                 player2 = None
+                
         else:
-            if TargRightSide:
+            if SecondTarg:
+                print("not, second")
                 enemy2 = None  # Remove enemy2
             else:
-                enemy = enemy2  # Move enemy2 to enemy's position
+                print("not, first")
+                enemy = copy.deepcopy(enemy2)  # Move enemy2 to enemy's position
                 enemy2 = None
 
     # Reset things
@@ -398,14 +406,16 @@ def switch(isPlayer, newIdx):
     totalHP = 0
     totalStam = 0
 
-    # Get hp, stamina, ect. that changes
-    totalHP += person.curHP
-    totalStam += person.comboStamina
-    if person2:
-        totalHP += person2.curHP
-        totalStam += person2.comboStamina
-    team[0].curHP = totalHP
-    team[0].comboStamina = totalStam
+    # if not dead
+    if person:
+        # Get hp, stamina, ect. that changes
+        totalHP += person.curHP
+        totalStam += person.comboStamina
+        if person2:
+            totalHP += person2.curHP
+            totalStam += person2.comboStamina
+        team[0].curHP = totalHP
+        team[0].comboStamina = totalStam
 
     # flip flop them
     team[0], team[newIdx] = team[newIdx], team[0]
@@ -443,12 +453,14 @@ def DeitySelect():
         button_hover = button_rect.collidepoint(mouse_x, mouse_y)
         
         # Check if the mouse is hovering over the button and left click
-        if button_hover and click:
+        if button_hover and click and deity.curHP > 0:
             switchSelected = i
         
         # Background color logic
         backColor = (0, 125, 50) if button_hover and switchSelected == -1 else (0, 0, 125)
         backColor = (0, 0, 0) if i == switchSelected else backColor
+        backColor = (255,0,0) if deity.curHP <= 0 else backColor
+
         pygame.draw.rect(screen, backColor, button_rect)
         pygame.draw.rect(screen, (0, 0, 0), button_rect, 2)  # Black outline
         
@@ -459,7 +471,10 @@ def DeitySelect():
         
         y += button_height + 10  # Move y for the next button
     
-    if switchSelected != -1:
+    if switchSelected == 0:
+        # placement if 1 or greater, -1 means nothing, -2 means turn this menu off a
+        switchSelected = -3
+    elif switchSelected > 0:
         # Confirmation box
         confirm_rect = pygame.Rect(100, 75, 600, 450)
         pygame.draw.rect(screen, (255, 155, 0), confirm_rect)
@@ -494,8 +509,8 @@ def DeitySelect():
         screen.blit(no_surface, (WIDTH // 2 + 40, HEIGHT // 2 + 10))
 
         # Draw the lettes the user can separate 
-        
-        drawDeity(playerTeam[switchSelected], ppXX, ppYY, True, False)
+        if playerTeam[switchSelected]:
+            drawDeity(playerTeam[switchSelected], ppXX, ppYY, True, False)
 
         if yes_rect.collidepoint(mouse_x, mouse_y) and click:
             # Perform the switch logic (implement switching logic here)
@@ -512,19 +527,18 @@ def DeitySelect():
             if player1.lets:
                 separateDeity()
 
+            curDialog.append("Player Switched Deities!")
+            if player2:
+                curDialog.append("They also split in 2!")
+            else:
+                curDialog.append("")
+
             switchSelected = -2  # Reset selection after switching
         
         if no_rect.collidepoint(mouse_x, mouse_y) and click:
             for let in playerTeam[switchSelected].lets[:]: 
                 playerTeam[switchSelected].lets.remove(let)
             switchSelected = -1  # Cancel selection
-
-
-# Draws --- Battle, Separate, Switch, Retreat
-def battleOptionButtons():
-    global playX, playY
-
-    
 
 # make buttons for splitting, switching, retreat?
 # screen to see your team
@@ -534,8 +548,7 @@ def main():
     loadTeams()
 
     running = True
-    playerChoose = True
-    playerSplit = False
+    playerTurn = True
     sideSelect = False
     haveWinner = False
 
@@ -544,15 +557,17 @@ def main():
         screen.fill(BLACK)
 
         # exit from switching
-        if showSwitchMenu and switchSelected == -2:
-            showSwitchMenu = False
-            switchSelected = -1
-            curDialog.append("Player Switched Deities!")
-            if player2:
-                curDialog.append("They also split in 2!")
-            else:
-                curDialog.append("")
-
+        if showSwitchMenu and switchSelected < -1:
+            if not (player1 or player2):
+                switchSelected = -1
+            elif switchSelected == -2:
+                showSwitchMenu = False
+                switchSelected = -1
+                # playerTurn = False
+            else: # meaning they did not switch
+                showSwitchMenu = False
+                switchSelected = -1
+            
         # Handle player input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -561,7 +576,7 @@ def main():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
 
-                    if curDialog and not sideSelect:
+                    if curDialog:
                         curDialog.pop(0) 
                         if curDialog:
                             curDialog.pop(0)
@@ -589,7 +604,7 @@ def main():
                                 SSC[2] = False
 
 
-                    elif playerChoose:
+                    elif playerTurn and not sideSelect:
 
                         if showSwitchMenu and (switchSelected > -1):
                             for i, letter in enumerate(playerTeam[switchSelected].letters):
@@ -634,20 +649,20 @@ def main():
         # pop the current dialog
 
         # The move the player is choosing to make
-        if (sideSelect or playerChoose) and not curDialog:
+        if playerTurn and not curDialog:
 
             mouse_x, mouse_y = pygame.mouse.get_pos()
             click = pygame.mouse.get_pressed()[0]
 
-            buttonNames = ['Battle', 'Split', 'Swap', 'Leave'] if not sideSelect else ['Battle', 'Back']
+            buttonNames = ['Battle', 'Back'] if sideSelect else ['Battle', 'Split', 'Swap', 'Leave']
             button_width = 90
             button_height = 30
             button_spacing = 10
             border_radius = 1  # roundness
 
             for i, btn in enumerate(buttonNames):
-                rect_x = playX - 120 + i * (button_width + button_spacing) 
-                rect_y = playY - 60
+                rect_x = playX - 120 + i * (button_width + button_spacing) if not sideSelect else  60 + i * (button_width + button_spacing)
+                rect_y = playY - 60 
                 rect = pygame.Rect(rect_x, rect_y, button_width, button_height)
                 color = (25, 25, 25) if rect.collidepoint(mouse_x, mouse_y) else (125, 125, 124)
                 color2 = (25, 25, 25) if rect.collidepoint(mouse_x, mouse_y) else (50, 50, 50)
@@ -656,22 +671,28 @@ def main():
                 text_surface = font.render(btn, True, WHITE)
                 text_rect = text_surface.get_rect(center=(rect_x + button_width // 2, rect_y + button_height // 2))
                 screen.blit(text_surface, text_rect)
-                if click and rect.collidepoint(mouse_x, mouse_y):
+
+
+                if click and rect.collidepoint(mouse_x, mouse_y) and not showSwitchMenu:
 
                     if btn == "Battle" and (player1.lets or (player2 and player2.lets)): #----------------------------------------------------------
                         
                         if sideSelect:# the aiming for side select, which letter's need which side----------
                             if ((not player1.lets or (SSC[0] or SSC[1])) and (not (player2 and player2.lets) or (SSC[2] or SSC[3]))):
                                 if not (player2 and player2.lets) or (SSC[2] or SSC[3]):
+                                    playerTurn = False
                                     sideSelect = False
-                                    playerChoose = False
                         else:
                             
                             stamina_cost = player1.calculate_combo_stamina_cost()
                             if stamina_cost <= player1.comboStamina:
-                                playerChoose = False
                                 if (player1.lets or (player2 and player2.lets)) and enemy2:
+                                    SSC = [None, None, None, None]
                                     sideSelect = True
+                                elif (player1.lets or (player2 and player2.lets)) and not enemy2:
+                                    SSC = [None, None, None, None]
+                                    playerTurn = False
+                                    print("haazaa")
                     elif btn == "Battle":
                         curDialog.append("No letters selected!")
                         curDialog.append("Try Again")
@@ -689,12 +710,11 @@ def main():
                         if enemy2:
                             enemy2.lets = enemy_choose_letters(enemy2)
                             listBySpeed.append((enemy2, player1, True, True))
-                        for person, target, isTargPlayer, TargRightSide in listBySpeed:
-                            doCurTurn(person, target, isTargPlayer, TargRightSide)
+                        for person, target, isTargPlayer, SecondTarg in listBySpeed:
+                            doCurTurn(person, target, isTargPlayer, SecondTarg)
 
                         if player1.curHP > 1:
-                            playerChoose = False # player chose to split (power of letter H)
-                            playerSplit = True
+                            playerTurn = False # player chose to split (power of letter H)
                             separateDeity()
                             
                             curDialog.append(f"{player1.name}'s Split successful")
@@ -711,14 +731,20 @@ def main():
                             curDialog.append("Please select letters")
                             curDialog.append("to become team.")
                     
-                    elif btn == 'Swap':
+                    elif btn == 'Swap' and not sideSelect:
                         showSwitchMenu = True # very simple
 
-                    elif btn == 'Back':
+                    elif btn == 'Back' and sideSelect:
+                        SSC = [None, None, None, None]
                         sideSelect = False
-                        playerChoose = True
-                        curDialog.append("Player Went back")
-                        curDialog.append("")
+                        playerTurn = True
+
+
+                    elif btn == 'Leave' and not sideSelect:
+                        curDialog.append("Player Forfeited The Match")
+                        curDialog.append("Enemy Wins")
+
+                    pygame.time.delay(100)  # Wait for 1000 milliseconds (1 second)
 
         #-=-=-=-=-=-=-=-=-=-==-==-=-=-=-=-=-=-=-=-=
         #-=-=-=-=-=-=-=-=-=-==-==-=-=-=-=-=-=-=-=-=
@@ -727,7 +753,7 @@ def main():
         draw_dialog()
 
         # Combate move decided ---END TURN---
-        if not playerChoose and not curDialog and not sideSelect and not showSwitchMenu:
+        if not playerTurn and not sideSelect and not curDialog and not showSwitchMenu:
 
             # Player has their words and also which target to hit ----------------- 
             if player1.lets or (player2 and player2.lets):
@@ -740,50 +766,54 @@ def main():
                 # False = left, True = Right (rare one)
                 playTarg1 = enemy2 if SSC[1] else enemy 
                 playTarg2 = enemy2 if SSC[3] else enemy  
+                p1t2 = True if playTarg1 == enemy2 else False
+                p2t2 = True if playTarg2 == enemy2 else False
 
                 enemTarg1 = player1 if not player2 else random.choice([player1, player2])  
-                enemTarg2 = player1 if not player2 else random.choice([player1, player2])  
+                enemTarg2 = player1 if not player2 else random.choice([player1, player2]) 
+                e1t2 = True if enemTarg1 == player2 else False
+                e2t2 = True if enemTarg2 == player2 else False
 
                 listBySpeed = []
 
                 if player1 and player1.lets:
-                    listBySpeed.append((player1, playTarg1, False, False))
+                    listBySpeed.append((player1, playTarg1, False, p1t2))
                 if player2 and player2.lets:
-                    listBySpeed.append((player2, playTarg2, False, True))
+                    listBySpeed.append((player2, playTarg2, False, p2t2))
 
                 if enemy and enemy.lets:
-                    listBySpeed.append((enemy, enemTarg1, True, False))
+                    listBySpeed.append((enemy, enemTarg1, True, e1t2))
                 if enemy2 and enemy2.lets:
-                    listBySpeed.append((enemy2, enemTarg2, True, True))
+                    listBySpeed.append((enemy2, enemTarg2, True, e2t2))
 
                 #   --organize by speed later, idk what crahs bug---     listBySpeed.sort(key=lambda x: x[], reverse=True)
 
                 # Process each move
-                for person, target, isTargPlayer, TargRightSide in listBySpeed:
-                    doCurTurn(person, target, isTargPlayer, TargRightSide)
+                for person, target, isTargPlayer, SecondTarg in listBySpeed:
+                    doCurTurn(person, target, isTargPlayer, SecondTarg)
                     
                 
                 SSC = [None, None, None, None]
 
-            playerChoose = True  # Reset for the next turn
+            playerTurn = True  # Reset for the next turn
 
 
         # display things
-        if not showSwitchMenu:
-            drawDeity(player1, playX, playY, True, sideSelect)
+        if (not showSwitchMenu) or curDialog:
+            if player1:
+                drawDeity(player1, playX - 5, playY, True, sideSelect)
             if player2:
-                drawDeity2(player2, playX + 10 + (len(player1.letters) * 50)   , playY, True, sideSelect)
+                drawDeity2(player2, playX + 12 + (len(player1.letters) * 50)   , playY, True, sideSelect)
 
-            drawDeity(enemy, enemX, enemY, False, playerChoose)
+            if enemy:
+                drawDeity(enemy, enemX, enemY, False, playerTurn)
             if enemy2:
-                drawDeity2(enemy2, enemX + 10 + (len(enemy.letters) * 50), enemY, False, playerChoose)
+                drawDeity2(enemy2, enemX + 17 + (len(enemy.letters) * 50), enemY, False, playerTurn)
 
             # Draw input wordbox, current word being formed
             # font size is 36, 26
             if sideSelect:
                 drawSideSelect()
-
-            battleOptionButtons()
 
             if not curDialog and not haveWinner:
                 ipX, ipY = 75, playY + buttonY
@@ -803,27 +833,49 @@ def main():
                     screen.blit(input_surface, (input_box.x + 5, input_box.y + 5))
         else:
             DeitySelect()
+
         
             
         
 
-        # Check for game over
-        if not player1 and not player2 and not haveWinner:
-            curDialog.append(f"{enemy.name}   WINS!!!!")
+        # Check for game over amd/or force switch
+        if not (player1 or player2) and not haveWinner and not showSwitchMenu:
             haveWinner = True
-        elif not enemy and not enemy2 and not haveWinner:
-            curDialog.append(f"{player1.name}   WINS!!!!")
+            if any(deity.curHP > 0 for deity in playerTeam): 
+                haveWinner = False
+                curDialog.append("Please Choose")
+                curDialog.append("New Deity")
+                showSwitchMenu = True
+            else:  
+                winner_name = enemy.name if enemy else "The Enemy"
+                curDialog.append(f"{winner_name} WINS!!!!")
+
+            
+
+        if not (enemy or enemy2) and not haveWinner:  
             haveWinner = True
+            if any(deity.curHP > 0 for deity in enemyTeam):
+                haveWinner = False
+                
+                for i in range(1, len(enemyTeam)):
+                    if enemyTeam[i].curHP > 0:
+                        
+                        switch(False, i)
+                        curDialog.append(f"{enemyTeam[0].name} sent out")
+                        curDialog.append("")
+                        break
+            else:  
+                winner_name = player1.name if player1 else "Player"
+                curDialog.append(f"{winner_name} WINS!!!!")
+            
 
         if haveWinner and not curDialog:
             running = False
 
-
-
         # Update display
         pygame.display.flip()
 
-    pygame.time.delay(10)  # Wait for 1000 milliseconds (1 second)
+    pygame.time.delay(100)  # Wait for 1000 milliseconds (1 second)
 
     # Quit PyGame
     pygame.quit()
