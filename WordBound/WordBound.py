@@ -18,9 +18,26 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 255, 255)
 
+playX, playY = 520, 432
+enemX, enemY = 40, 30
+buttonY = 50
+
 # Fonts
 font = pygame.font.Font(None, 38)
 bigfont = pygame.font.Font(None, 48)
+
+
+# This will store the state of the radio buttons: False (not clicked), True (clicked)
+SSC = [False, False, False, False]
+
+player1, player2 = None, None
+enemy, enemy2 = None, None
+playerTeam, enemyTeam = [], []
+
+switchSelected = -1
+ppXX, ppYY = WIDTH // 2 - 100, HEIGHT // 2 + 70
+
+curDialog = []
 
 def color_mapping(color_name):
     color_dict = {
@@ -180,12 +197,9 @@ def enemy_choose_letters(enemy):
     return chosen_letters
 
 
-playX, playY = 520, 432
-enemX, enemY = 40, 30
-buttonY = 50
 
-# This will store the state of the radio buttons: False (not clicked), True (clicked)
-SSC = [False, False, False, False]
+
+
 
 # word = word Attacking   
 def calculate_damage(attacking, receiving):
@@ -218,7 +232,7 @@ def calculate_damage(attacking, receiving):
 
 
 
-curDialog = []
+
 
 def doCurTurn(person, target, isTargPlayer, TargRightSide):
     global player1, player2, enemy, enemy2, curDialog
@@ -323,9 +337,7 @@ def drawSideSelect():
         pygame.draw.rect(screen, backColor if not SSC[2] else selectedColor, (secondStart, ipY + 45, 20, 20))
         pygame.draw.rect(screen, backColor if not SSC[3] else selectedColor, (secondStart + 40, ipY + 45, 20, 20))
 
-player1, player2 = None, None
-enemy, enemy2 = None, None
-playerTeam, enemyTeam = [], []
+
 
 def loadTeams():
     global player1, player2, enemy, enemy2, playerTeam, enemyTeam
@@ -411,8 +423,7 @@ def switch(isPlayer, newIdx):
 
 
 
-switchSelected = -1
-ppXX, ppYY = WIDTH // 2 - 100, HEIGHT // 2 + 70
+
 
 def DeitySelect():
     global switchSelected
@@ -507,6 +518,44 @@ def DeitySelect():
             for let in playerTeam[switchSelected].lets[:]: 
                 playerTeam[switchSelected].lets.remove(let)
             switchSelected = -1  # Cancel selection
+
+
+# Draws --- Battle, Separate, Switch, Retreat
+def battleOptionButtons():
+    global playX, playY
+
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()[0]
+
+    buttonNames = ['Battle', 'Split', 'Swap', 'Leave']
+    button_width = 90
+    button_height = 30
+    button_spacing = 10
+    border_radius = 1  # Adjust for roundness
+
+    for i, btn in enumerate(buttonNames):
+        rect_x = playX - 120 + i * (button_width + button_spacing)
+        rect_y = playY - 60
+        rect = pygame.Rect(rect_x, rect_y, button_width, button_height)
+
+        # Button color changes on hover
+        color = (25, 25, 25) if rect.collidepoint(mouse_x, mouse_y) else (125, 125, 124)
+        color2 = (25, 25, 25) if rect.collidepoint(mouse_x, mouse_y) else (50, 50, 50)
+
+        # Draw outline first
+        pygame.draw.rect(screen, color2, rect.inflate(8, 8), border_radius=border_radius)
+
+        # Draw button inside the outline
+        pygame.draw.rect(screen, color, rect, border_radius=border_radius)
+
+        # Render and center the text
+        text_surface = font.render(btn, True, WHITE)
+        text_rect = text_surface.get_rect(center=(rect_x + button_width // 2, rect_y + button_height // 2))
+        screen.blit(text_surface, text_rect)
+
+        # Handle Click Event (if needed)
+        if click and rect.collidepoint(mouse_x, mouse_y):
+            print(f"{btn} button clicked!")  # Replace with actual functionality
 
 # make buttons for splitting, switching, retreat?
 # screen to see your team
@@ -746,6 +795,8 @@ def main():
             # font size is 36, 26
             if sideSelect:
                 drawSideSelect()
+
+            battleOptionButtons()
 
             if not curDialog and not haveWinner:
                 ipX, ipY = 75, playY + buttonY
