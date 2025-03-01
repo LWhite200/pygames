@@ -524,38 +524,7 @@ def DeitySelect():
 def battleOptionButtons():
     global playX, playY
 
-    mouse_x, mouse_y = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()[0]
-
-    buttonNames = ['Battle', 'Split', 'Swap', 'Leave']
-    button_width = 90
-    button_height = 30
-    button_spacing = 10
-    border_radius = 1  # Adjust for roundness
-
-    for i, btn in enumerate(buttonNames):
-        rect_x = playX - 120 + i * (button_width + button_spacing)
-        rect_y = playY - 60
-        rect = pygame.Rect(rect_x, rect_y, button_width, button_height)
-
-        # Button color changes on hover
-        color = (25, 25, 25) if rect.collidepoint(mouse_x, mouse_y) else (125, 125, 124)
-        color2 = (25, 25, 25) if rect.collidepoint(mouse_x, mouse_y) else (50, 50, 50)
-
-        # Draw outline first
-        pygame.draw.rect(screen, color2, rect.inflate(8, 8), border_radius=border_radius)
-
-        # Draw button inside the outline
-        pygame.draw.rect(screen, color, rect, border_radius=border_radius)
-
-        # Render and center the text
-        text_surface = font.render(btn, True, WHITE)
-        text_rect = text_surface.get_rect(center=(rect_x + button_width // 2, rect_y + button_height // 2))
-        screen.blit(text_surface, text_rect)
-
-        # Handle Click Event (if needed)
-        if click and rect.collidepoint(mouse_x, mouse_y):
-            print(f"{btn} button clicked!")  # Replace with actual functionality
+    
 
 # make buttons for splitting, switching, retreat?
 # screen to see your team
@@ -658,88 +627,110 @@ def main():
                                         else:
                                             player2.lets.remove(letter)
 
+        #-=-=-=-=-=-=-=-=-=-==-==-=-=-=-=-=-=-=-=-=
+        #-=-=-=-=-=-=-=-=-=-==-==-=-=-=-=-=-=-=-=-=
+        #-=-=-=-=-=-=-=-=-=-==-==-=-=-=-=-=-=-=-=-=
 
-                if event.button == 3:
-                    if sideSelect:
+        # pop the current dialog
+
+        # The move the player is choosing to make
+        if (sideSelect or playerChoose) and not curDialog:
+
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            click = pygame.mouse.get_pressed()[0]
+
+            buttonNames = ['Battle', 'Split', 'Swap', 'Leave'] if not sideSelect else ['Battle', 'Back']
+            button_width = 90
+            button_height = 30
+            button_spacing = 10
+            border_radius = 1  # roundness
+
+            for i, btn in enumerate(buttonNames):
+                rect_x = playX - 120 + i * (button_width + button_spacing) 
+                rect_y = playY - 60
+                rect = pygame.Rect(rect_x, rect_y, button_width, button_height)
+                color = (25, 25, 25) if rect.collidepoint(mouse_x, mouse_y) else (125, 125, 124)
+                color2 = (25, 25, 25) if rect.collidepoint(mouse_x, mouse_y) else (50, 50, 50)
+                pygame.draw.rect(screen, color2, rect.inflate(8, 8), border_radius=border_radius)
+                pygame.draw.rect(screen, color, rect, border_radius=border_radius)
+                text_surface = font.render(btn, True, WHITE)
+                text_rect = text_surface.get_rect(center=(rect_x + button_width // 2, rect_y + button_height // 2))
+                screen.blit(text_surface, text_rect)
+                if click and rect.collidepoint(mouse_x, mouse_y):
+
+                    if btn == "Battle" and (player1.lets or (player2 and player2.lets)): #----------------------------------------------------------
+                        
+                        if sideSelect:# the aiming for side select, which letter's need which side----------
+                            if ((not player1.lets or (SSC[0] or SSC[1])) and (not (player2 and player2.lets) or (SSC[2] or SSC[3]))):
+                                if not (player2 and player2.lets) or (SSC[2] or SSC[3]):
+                                    sideSelect = False
+                                    playerChoose = False
+                        else:
+                            
+                            stamina_cost = player1.calculate_combo_stamina_cost()
+                            if stamina_cost <= player1.comboStamina:
+                                playerChoose = False
+                                if (player1.lets or (player2 and player2.lets)) and enemy2:
+                                    sideSelect = True
+                    elif btn == "Battle":
+                        curDialog.append("No letters selected!")
+                        curDialog.append("Try Again")
+
+                    elif btn == "Split" and (player1.lets and not player2): #----------------------------------------------------------
+                        
+                        curDialog.append(f"{player1.name} is Splitting ")
+                        curDialog.append("Vulnerable to Attack")
+
+                        listBySpeed = [] # let enemy attack first
+
+                        if enemy:
+                            enemy.lets = enemy_choose_letters(enemy)
+                            listBySpeed.append((enemy, player1, True, False))
+                        if enemy2:
+                            enemy2.lets = enemy_choose_letters(enemy2)
+                            listBySpeed.append((enemy2, player1, True, True))
+                        for person, target, isTargPlayer, TargRightSide in listBySpeed:
+                            doCurTurn(person, target, isTargPlayer, TargRightSide)
+
+                        if player1.curHP > 1:
+                            playerChoose = False # player chose to split (power of letter H)
+                            playerSplit = True
+                            separateDeity()
+                            
+                            curDialog.append(f"{player1.name}'s Split successful")
+                            curDialog.append("")
+                        else:
+                            curDialog.append("Split failed")
+                            curDialog.append(f"{player1.name}'s hp too low")
+                        
+                    elif btn == "Split":
+                        if player2:
+                            curDialog.append("Cannot Split Again")
+                            curDialog.append("")
+                        else:
+                            curDialog.append("Please select letters")
+                            curDialog.append("to become team.")
+                    
+                    elif btn == 'Swap':
+                        showSwitchMenu = True # very simple
+
+                    elif btn == 'Back':
                         sideSelect = False
                         playerChoose = True
+                        curDialog.append("Player Went back")
+                        curDialog.append("")
 
-
-            elif event.type == pygame.KEYDOWN:
-
-                # ---SPLIT-----------------------------------------------------------------------------------------------------
-                 # ---SPLIT-----------------------------------------------------------------------------------------------------
-                if event.key == pygame.K_TAB and len(player1.lets) > 0 and not player2 and not sideSelect and not showSwitchMenu:  # player1.lists[-1].name == "H" and 
-
-                    # let enemy attack first
-                    listBySpeed = []
-
-                    if enemy:
-                        enemy.lets = enemy_choose_letters(enemy)
-                        listBySpeed.append((enemy, player1, True, False))
-                    if enemy2:
-                        enemy2.lets = enemy_choose_letters(enemy2)
-                        listBySpeed.append((enemy2, player1, True, True))
-                    for person, target, isTargPlayer, TargRightSide in listBySpeed:
-                        doCurTurn(person, target, isTargPlayer, TargRightSide)
-
-                    playerChoose = False # player chose to split (power of letter H)
-                    playerSplit = True
-                    separateDeity()
-
-
-                    
-
-                if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT :
-                    # player1.lets.remove(letter)--------------the player stores the currently selected letters
-                    showSwitchMenu = not showSwitchMenu
-
-                # [SPACE]
-                if (event.key == pygame.K_RETURN or event.key == pygame.K_SPACE) and not showSwitchMenu: 
-
-                    if curDialog:
-                        curDialog.pop(0) 
-                        if curDialog:
-                            curDialog.pop(0)
-
-                    # the aiming for side select, which letter's need which side----------
-                    elif sideSelect:
-                        # probably not the best way
-
-                        # check not None/null
-                        # perhaps check if .lets not null and contains 'a' or 'b'?????????
-                        if ((not player1.lets or (SSC[0] or SSC[1])) and (not (player2 and player2.lets) or (SSC[2] or SSC[3]))):
-                            if not (player2 and player2.lets) or (SSC[2] or SSC[3]):
-                                sideSelect = False
-                                playerChoose = False
-                            
-
-                    else:
-                        # Calculate stamina cost for the selected letters
-                        stamina_cost = player1.calculate_combo_stamina_cost()
-
-                        if stamina_cost <= player1.comboStamina:
-                            # If more than 1 letter is selected and enough stamina
-                            playerChoose = False
-
-                            if (player1.lets or (player2 and player2.lets)) and enemy2:
-                                sideSelect = True
+        #-=-=-=-=-=-=-=-=-=-==-==-=-=-=-=-=-=-=-=-=
+        #-=-=-=-=-=-=-=-=-=-==-==-=-=-=-=-=-=-=-=-=
+        #-=-=-=-=-=-=-=-=-=-==-==-=-=-=-=-=-=-=-=-=
 
         draw_dialog()
 
         # Combate move decided ---END TURN---
         if not playerChoose and not curDialog and not sideSelect and not showSwitchMenu:
-            if playerSplit:
-                
-                # Let enemy attack the player???
-            
-                player1.lets = []
-                player2.lets = []
-                playerSplit = False
-
 
             # Player has their words and also which target to hit ----------------- 
-            elif player1.lets or (player2 and player2.lets):
+            if player1.lets or (player2 and player2.lets):
 
                 # Randomize enemy attack
                 enemy.lets = enemy_choose_letters(enemy)
@@ -773,10 +764,6 @@ def main():
                     
                 
                 SSC = [None, None, None, None]
-
-            else:
-                curDialog.append("No letters selected!")
-                curDialog.append("Try Again")
 
             playerChoose = True  # Reset for the next turn
 
