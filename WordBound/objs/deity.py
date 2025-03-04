@@ -34,35 +34,30 @@ class Letter:
         self.color1 = color_mapping(self.battleType)
         self.tier = random.randint(0, 2)
 
-        self.power = 5550 if self.char in ["A", "B"] else 0
+        self.power = 50 if self.char in ["A", "B"] else 0
         self.statChange = "" if self.char in ["A", "B"] else self.getStatChange(self.char)
 
         self.Accuracy = 100
 
     def getStatChange(self, letter):
         
-        #stat change
-        if letter == "C":
-            return "Accuracy,increase,user"
-
-        elif letter == "D":
-            return "Accuracy,decrease,opp"
+        # letters not present: A, B, C, D
 
         # status 
-        elif letter == "E":
+        if letter == "E":
             return "Accuracy,increase,user"
 
         # Heal
         elif letter == "F":
             return "Accuracy,decrease,opp"
-
-        # Protect if first, else defense buff current turn
+        
+        # Protect, must be alone for full protect, else it is 'wide guard' with slight defense boost
         elif letter == "G":
-            return "Accuracy,decrease,opp"
+            return "Defense,increase,user"
 
         # Current Move Accuracy increase, no miss?
         elif letter == "H":
-            return "Defense,decrease,user"
+            return "Defense,Increase,user"
 
         # Changes weather if out front, else temporary current turn weather change
         elif letter == "I":
@@ -97,6 +92,10 @@ class Deity:
         self.defense = 100
         self.special = 100
         self.Accuracy = 100
+
+        # -- stats below are stages, out of 6. 1/4 for all stat increase so maximum of *2.5
+
+        self.protect = 0 # 0 = not, 1 = not first, 2 = 2/3, 3 = total protect
 
         # may remain entire game
         self.statPhysical = 0

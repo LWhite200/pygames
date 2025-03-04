@@ -25,6 +25,7 @@ buttonY = 50
 # Fonts
 font = pygame.font.Font(None, 38)
 bigfont = pygame.font.Font(None, 48)
+smallfont = pygame.font.Font(None, 28)
 
 
 # This will store the state of the radio buttons: False (not clicked), True (clicked)
@@ -38,6 +39,7 @@ switchSelected = -1
 ppXX, ppYY = WIDTH // 2 - 100, HEIGHT // 2 + 70
 
 curDialog = []
+tempBattleDialog = []
 
 checkGameDone = False
 
@@ -135,7 +137,7 @@ def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, play
 
     
 def drawDeity(deity, x, y, isPlayer1, playerTurn):
-        global player2
+        global player2, enemy2
         text = font.render(f"{deity.name} (HP: {deity.curHP})", True, deity.battleColor)
 
         second = player2 if player2 and isPlayer1 else None
@@ -143,7 +145,7 @@ def drawDeity(deity, x, y, isPlayer1, playerTurn):
             second = enemy2 if enemy2 and not isPlayer1 else None
 
         if second:
-            text = font.render(f"{deity.name} ({deity.curHP}) | ({second.curHP})", True, deity.battleColor)
+            text = smallfont.render(f"{deity.name} ({deity.curHP})  |  {second.name} ({second.curHP})", True, deity.battleColor)
         screen.blit(text, (x - 10, y + 10))
 
         spaceBetweenGroups = 10  # The space between the two groups of letters
@@ -195,6 +197,17 @@ def enemy_choose_letters(enemy):
     return chosen_letters
 
 
+def enemy_split_random(enemy):
+    # Enemy randomly selects 1-3 letters to form a word
+    maxSize = len(enemy.letters) - 1
+    if maxSize == 0:
+        maxSize += 1
+
+    num_letters = random.randint(1, maxSize)
+    chosen_letters = random.sample(enemy.letters, num_letters)
+    return chosen_letters
+
+
 # The power is the sum of all attacks 
 # if the use of 'G', defense is doubled
 # stat changing moves are 1/3 effective if not out front
@@ -203,8 +216,9 @@ def enemy_choose_letters(enemy):
 # first stat = perminent
 # word = word Attacking   
 def calculate_damage(attacking, receiving):
-    global curDialog
+    global curDialog, tempBattleDialog
 
+    attacking.removeTemporary() # remove all their temporary stat changes
     aboveOrBelow = sum(letter.power for letter in attacking.lets) # for display
     base_damage = 0 # sum(letter.power for letter in word)
 
@@ -225,19 +239,27 @@ def calculate_damage(attacking, receiving):
                 base_damage += letterDmg
 
         # Calculate Changes to enemy stats       
-        # Determine stat change target
         for target, role in [(receiving, "opp"), (attacking, "user")]:
-            if letterStat and len(letterStat) > 2 and letterStat[2] == role:
+            if letterStat and len(letterStat) > 2 and letterStat[2] == role and letter.char != "G":
                 stat = letterStat[0]
 
-                if role == "user" and stat == "Defense":
-                    continue  # Skip if self-targeting and stat is Defense
-
                 stat = ("stat" if i == 0 else "temp") + stat
-                print(f"{target.name}'s {stat} decreased")
+
+                if target == attacking:
+                    tempBattleDialog.append(f"[{letter.char} : {str(i+1)}] {letterStat[1]}d")
+                    tempBattleDialog.append(f"it's {stat}")
+                else:
+                    tempBattleDialog.append(f"{str(i+1)} : [ {letter.char} ] {letterStat[1]}d")
+                    tempBattleDialog.append(f"{target.name}'s {stat} ")
 
                 if hasattr(target, stat):  # Ensure target has the stat attribute
-                    setattr(target, stat, getattr(target, stat) - 10)
+                    if letterStat[1] == "increase":
+                        change = 1
+                    else:
+                        change = -1
+                    setattr(target, stat, getattr(target, stat) + change)
+
+
 
     if base_damage > aboveOrBelow and base_damage > 0:
         curDialog.append("Super Effective!!!")
@@ -253,7 +275,12 @@ def calculate_damage(attacking, receiving):
 
 
 def curMove(person, target, isTargPlayer, SecondTarg):
-    global player1, player2, enemy, enemy2, curDialog, playerTeam, enemyTeam
+    global player1, player2, enemy, enemy2, curDialog, playerTeam, enemyTeam, tempBattleDialog
+
+    if target.protect >= 3:
+        curDialog.append(f"{person.name} hit into")
+        curDialog.append(f"protected {person.name}")
+        return
 
     targTeam = playerTeam if isTargPlayer else enemyTeam
 
@@ -269,8 +296,16 @@ def curMove(person, target, isTargPlayer, SecondTarg):
     if targTeam[0].curHP < 0:
         targTeam[0].curHP = 0
 
+    
     curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
-    curDialog.append(f"It did {dmg} dmg to '{' '.join([letter.char for letter in target.letters])}'")
+    if dmg > 0:
+        curDialog.append(f"It did {dmg} dmg!")
+    else:
+        curDialog.append(f"")
+
+    for dialog in tempBattleDialog:
+        curDialog.append(dialog)
+    tempBattleDialog = []
 
 
     # remove target if they died
@@ -300,17 +335,24 @@ def curMove(person, target, isTargPlayer, SecondTarg):
 def statChangingLetters(letterName):
     return letterName not in ('A', 'B', 'C', 'D')
 
+# chekc if the person is protecting
 def checkBeforeTurnStatChanges(person):
     for i, letter in enumerate(person.lets):
-        if statChangingLetters(letter.char):
-            letterStat = letter.statChange.split(",")
-            if letterStat[0] == "Defense" and letterStat[2] == "user":
-                if i == 0:
-                    person.statDefense += 10
-                    print(f"{person.name} Stat defense up 10")
-                else:
-                    person.tempDefense += 10
-                    print(f"{person.name} temp defense up 10")
+        if letter.char == "G" and len(person.lets) > 1:
+            person.protect += 1 # 0 = none, 1 = half protect, 2 = full protect
+            if person.protect > 3: 
+                person.protect = 3
+                curDialog.append(f"{person.name} Fully Protected")
+                curDialog.append(f"jucg")
+            else:
+                curDialog.append(f"{person.name} partial Protect")
+                curDialog.append(f"")
+            break
+        elif letter.char == "G" :
+            person.protect = 3 # 0 = none, 1 = half protect, 2 = full protect
+            
+            break
+
 
 def curTurn():
     global player1, player2, enemy, enemy2, SSC
@@ -334,25 +376,20 @@ def curTurn():
     for person, isTargetEnemy2, isTargetPlayer in deityList:
         if not person or not person.lets:
             continue  # Skip if no character or no selected attack
-
         checkBeforeTurnStatChanges(person) # check to see if cur-turn stat increases
-
         if isTargetPlayer:
             target = player1 if not player2 else random.choice([player1, player2])
             sideSecond = target == player2
         else:
             target = enemy2 if isTargetEnemy2 else enemy
             sideSecond = target == enemy2
-
         listBySpeed.append((person, target, isTargetPlayer, sideSecond))
 
     # Process each move
     for person, target, isTargPlayer, secondTarg in listBySpeed:
-        if not target.lets or target.lets[0].char != 'G':  # Target is not protecting
-            curMove(person, target, isTargPlayer, secondTarg)
-        else:
-            curDialog.append(f"{target.name} Protected")
-            curDialog.append(f"{person.name}'s attack failed")
+        
+        print(str(target.protect) + " " + str(target.name))
+        curMove(person, target, isTargPlayer, secondTarg)
 
     # Reset SSC values
     SSC = [None] * 4
@@ -432,39 +469,62 @@ def loadTeams():
     enemyTeam = [en1, en2]
     enemy = copy.deepcopy(enemyTeam[0])
     # split afterwards, may start split, but not right now
-    enemy2 = copy.deepcopy(enemy)
-    enemy.letters = enemy.letters[:3]
-    enemy2.letters = enemy2.letters[3:]
+    separateDeity(False)
 
 
-def separateDeity():
-    global player1, player2
-    
+def separateDeity(isPlayer):
+    global player1, player2, enemy, enemy2
+
+    person = player1 if isPlayer else enemy
+    person2_ref = "player2" if isPlayer else "enemy2"  # Store reference to update later
+    person2 = player2 if isPlayer else enemy2  # Get second entity
+
     p2Lets = []
-    for let in player1.letters[:]:
-        if let not in player1.lets:
-            p2Lets.append(let)  
-            player1.letters.remove(let)
+    if isPlayer:
+        for let in player1.letters[:]:
+            if let not in player1.lets:
+                p2Lets.append(let)  
+                player1.letters.remove(let)
+    else:
+        lets = enemy_split_random(enemy)
+        for let in lets:
+            if let not in enemy.lets:
+                p2Lets.append(let)  
+                enemy.letters.remove(let)
 
-    
-    # player1.update_stamina(1) # costs 1 stamina
-    player1.lets = []
+    # Reset the first person's moves
+    person.lets = []
 
-    # Update stats in the split
-    calcHP = len(player1.letters) / (len(player1.letters)+len(p2Lets))
-    temp = player1.curHP
-    player1.curHP = int(player1.curHP * calcHP)
-    curHP2 = int(temp - player1.curHP)
+    # Calculate new HP and speed distribution
+    total_letters = len(person.letters) + len(p2Lets)
+    calcHP = len(person.letters) / total_letters if total_letters > 0 else 1
 
-    temp = player1.speed
-    player1.speed += player1.speed - int(player1.speed * calcHP)
-    speed2 = temp + int(temp * calcHP)
+    temp_hp = person.curHP
+    person.curHP = int(person.curHP * calcHP)
+    curHP2 = temp_hp - person.curHP  # Remaining HP for person2
 
-    # make it an entirely new deity
-    player2 = copy.deepcopy(player1)
-    player2.letters = p2Lets
-    player2.curHP = curHP2
-    player2.speed = speed2
+    temp_speed = person.speed
+    person.speed = int(person.speed * calcHP)
+    speed2 = temp_speed - person.speed  # Remaining speed for person2
+
+    # Split the name by space and assign placeholders
+    name_parts = person.name.split(" ", 1)  # Split once
+    person.name = name_parts[0]  # First part of the name
+    second_name = name_parts[1] if len(name_parts) > 1 else "__"  # Use second part or a placeholder
+
+    # Create new deity
+    person2 = copy.deepcopy(person)
+    person2.letters = p2Lets
+    person2.curHP = curHP2
+    person2.speed = speed2
+    person2.name = second_name  # Assign second name
+
+    # Assign the new deity back to the global variable
+    if isPlayer:
+        player2 = person2
+    else:
+        enemy2 = person2
+
 
 
 
@@ -621,7 +681,7 @@ def DeitySelect():
                         player1.lets.append(let)
 
                 if player1 and player1.lets:
-                    separateDeity()
+                    separateDeity(True)
 
                 if player2 and swapBoolEvenText:
                     curDialog.append("Split in 2!")
@@ -641,7 +701,7 @@ def DeitySelect():
 
 
 def needAim(player):
-    return all(letter.char not in ('G', 'H') for letter in player.lets)
+    return not all(letter.char in ('G', 'H') for letter in player.lets)
 
 
 def targetNotSelf(player):
@@ -830,8 +890,7 @@ def main():
                         doEnemyTurnOnly()
 
                         if player1.curHP > 1:
-                            playerTurn = False # player chose to split (power of letter H)
-                            separateDeity()
+                            separateDeity(True)
                             
                             curDialog.append(f"{player1.name}'s Split successful")
                             curDialog.append("")
@@ -872,6 +931,11 @@ def main():
         if not playerTurn and not sideSelect and not curDialog and not showSwitchMenu:
 
             curTurn()
+
+            peopleGame = [player1, player2, enemy, enemy2]
+            for person in peopleGame:
+                if person:
+                    person.protect = 0
 
             
 
