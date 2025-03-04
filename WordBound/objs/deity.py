@@ -34,47 +34,47 @@ class Letter:
         self.color1 = color_mapping(self.battleType)
         self.tier = random.randint(0, 2)
 
-        self.power = 5550 if self.char in ["A", "B"] else 5
+        self.power = 5550 if self.char in ["A", "B"] else 0
         self.statChange = "" if self.char in ["A", "B"] else self.getStatChange(self.char)
 
-        self.accuracy = 100
+        self.Accuracy = 100
 
     def getStatChange(self, letter):
         
         #stat change
         if letter == "C":
-            return "accuracy, increase, user"
+            return "Accuracy,increase,user"
 
         elif letter == "D":
-            return "accuracy, decrease, opp"
+            return "Accuracy,decrease,opp"
 
         # status 
         elif letter == "E":
-            return "accuracy, increase, user"
+            return "Accuracy,increase,user"
 
         # Heal
         elif letter == "F":
-            return "accuracy, decrease, opp"
+            return "Accuracy,decrease,opp"
 
         # Protect if first, else defense buff current turn
         elif letter == "G":
-            return "accuracy, decrease, opp"
+            return "Accuracy,decrease,opp"
 
         # Current Move Accuracy increase, no miss?
         elif letter == "H":
-            return "accuracy, decrease, opp"
+            return "Defense,decrease,user"
 
         # Changes weather if out front, else temporary current turn weather change
         elif letter == "I":
-            return "accuracy, decrease, opp"
+            return "Accuracy,decrease,opp"
 
         # User cannot switch out [j, idk abouit k and L]
         else:
-            return "accuracy, decrease, opp"
+            return ""
 
     def getRandomStat(self, isStatus):
         if not isStatus:
-            return random.choice(["speed", "physical", "special", "accuracy"])
+            return random.choice(["speed", "physical", "special", "Accuracy"])
 
     def ranColor(self):
         colors = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
@@ -94,12 +94,31 @@ class Deity:
         self.lets = []         # current move the player is choosing to do
 
         self.physical = 100
+        self.defense = 100
         self.special = 100
-        self.accuracy = 100
+        self.Accuracy = 100
+
+        # may remain entire game
+        self.statPhysical = 0
+        self.statDefense = 0
+        self.statSpecial = 0
+        self.statAccuracy = 0
+
+        # for the specific turn
+        self.tempPhysical = 0
+        self.tempDefense = 0
+        self.tempSpecial = 0
+        self.tempAccuracy = 0
         
         self.comboStamina = 5
         self.battleType = self.randType()
         self.battleColor = color_mapping(self.battleType)
+
+    def removeTemporary(self):
+        self.tempPhysical = 0
+        self.tempDefense = 0
+        self.tempSpecial = 0
+        self.tempAccuracy = 0
 
     def take_damage(self, damage):
         self.curHP -= damage

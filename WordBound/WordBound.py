@@ -195,34 +195,54 @@ def enemy_choose_letters(enemy):
     return chosen_letters
 
 
+# The power is the sum of all attacks 
+# if the use of 'G', defense is doubled
+# stat changing moves are 1/3 effective if not out front
 
-
-
-
+# first attack = 1.5 stronger if opponent weakness
+# first stat = perminent
 # word = word Attacking   
 def calculate_damage(attacking, receiving):
     global curDialog
 
-    aboveOrBelow = sum(letter.power for letter in attacking.lets)
+    aboveOrBelow = sum(letter.power for letter in attacking.lets) # for display
     base_damage = 0 # sum(letter.power for letter in word)
-    
-    for letter in attacking.lets:
-        curType = letter.battleType
-        curDmg = letter.power
-        oppType = receiving.battleType
-        
-        # Checks each type and adds or subracts accordingly
-        if curType in weaknesses[oppType]:
-            base_damage += curDmg + 10
-        elif curType in resistances[oppType]:
-            base_damage += (curDmg // 2)
-        else:
-            base_damage += curDmg
 
-    if base_damage > aboveOrBelow:
+    #---------------------------------------------------------------------------------
+    for i, letter in enumerate(attacking.lets):
+        letterType = letter.battleType
+        letterDmg = letter.power
+        oppType = receiving.battleType
+        letterStat = letter.statChange.split(",")
+        
+        # Calculate Damage
+        if letterDmg > 0:
+            if letterType in weaknesses[oppType]:
+                base_damage += letterDmg + 10
+            elif letterType in resistances[oppType]:
+                base_damage += (letterDmg // 2)
+            else:
+                base_damage += letterDmg
+
+        # Calculate Changes to enemy stats       
+        # Determine stat change target
+        for target, role in [(receiving, "opp"), (attacking, "user")]:
+            if letterStat and len(letterStat) > 2 and letterStat[2] == role:
+                stat = letterStat[0]
+
+                if role == "user" and stat == "Defense":
+                    continue  # Skip if self-targeting and stat is Defense
+
+                stat = ("stat" if i == 0 else "temp") + stat
+                print(f"{target.name}'s {stat} decreased")
+
+                if hasattr(target, stat):  # Ensure target has the stat attribute
+                    setattr(target, stat, getattr(target, stat) - 10)
+
+    if base_damage > aboveOrBelow and base_damage > 0:
         curDialog.append("Super Effective!!!")
         curDialog.append(f"")
-    elif base_damage < aboveOrBelow:
+    elif base_damage < aboveOrBelow and base_damage > 0:
         curDialog.append("Not That Effective")
         curDialog.append(f"")
 
@@ -232,32 +252,28 @@ def calculate_damage(attacking, receiving):
 
 
 
-def doCurTurn(person, target, isTargPlayer, SecondTarg):
+def curMove(person, target, isTargPlayer, SecondTarg):
     global player1, player2, enemy, enemy2, curDialog, playerTeam, enemyTeam
 
     targTeam = playerTeam if isTargPlayer else enemyTeam
 
-    # If the current side is either null or knocked out
     if person.curHP <= 0 or target.curHP <= 0:
         return
 
     dmg = calculate_damage(person, target)
 
-    # Determine which HP to update (left or right)
     peekHP = 0
-
-    target.take_damage(dmg)  # Apply damage to the left side
+    target.take_damage(dmg) 
     peekHP = target.curHP
-
     targTeam[0].curHP -= dmg
     if targTeam[0].curHP < 0:
         targTeam[0].curHP = 0
 
-    # Update dialog based on the result
     curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
     curDialog.append(f"It did {dmg} dmg to '{' '.join([letter.char for letter in target.letters])}'")
 
 
+    # remove target if they died
     if peekHP < 1:
         if target:
             curDialog.append(f"{target.name}'s fainted!")
@@ -265,20 +281,15 @@ def doCurTurn(person, target, isTargPlayer, SecondTarg):
 
         if isTargPlayer:
             if SecondTarg:
-                print("is, second")
-                player2 = None  # Remove player2
+                player2 = None  
             else:
-                print("is, first")
-                player1 = copy.deepcopy(player2)  # Move player2 to player1's position
+                player1 = copy.deepcopy(player2)  
                 player2 = None
-                
         else:
             if SecondTarg:
-                print("not, second")
-                enemy2 = None  # Remove enemy2
+                enemy2 = None  
             else:
-                print("not, first")
-                enemy = copy.deepcopy(enemy2)  # Move enemy2 to enemy's position
+                enemy = copy.deepcopy(enemy2)  
                 enemy2 = None
 
     # Reset things
@@ -286,6 +297,65 @@ def doCurTurn(person, target, isTargPlayer, SecondTarg):
     person.lets = []
 
 
+def statChangingLetters(letterName):
+    return letterName not in ('A', 'B', 'C', 'D')
+
+def checkBeforeTurnStatChanges(person):
+    for i, letter in enumerate(person.lets):
+        if statChangingLetters(letter.char):
+            letterStat = letter.statChange.split(",")
+            if letterStat[0] == "Defense" and letterStat[2] == "user":
+                if i == 0:
+                    person.statDefense += 10
+                    print(f"{person.name} Stat defense up 10")
+                else:
+                    person.tempDefense += 10
+                    print(f"{person.name} temp defense up 10")
+
+def curTurn():
+    global player1, player2, enemy, enemy2, SSC
+
+    # Randomize enemy attack
+    for enemy_unit in [enemy, enemy2]:
+        if enemy_unit:
+            enemy_unit.lets = enemy_choose_letters(enemy_unit)
+
+    # List of all possible combatants
+    deityList = [
+        (player1, SSC[1], False),
+        (player2, SSC[3], False),
+        (enemy, None, True),
+        (enemy2, None, True)
+    ]
+
+    listBySpeed = []
+
+    # Assign targets to deities, do stat buffs
+    for person, isTargetEnemy2, isTargetPlayer in deityList:
+        if not person or not person.lets:
+            continue  # Skip if no character or no selected attack
+
+        checkBeforeTurnStatChanges(person) # check to see if cur-turn stat increases
+
+        if isTargetPlayer:
+            target = player1 if not player2 else random.choice([player1, player2])
+            sideSecond = target == player2
+        else:
+            target = enemy2 if isTargetEnemy2 else enemy
+            sideSecond = target == enemy2
+
+        listBySpeed.append((person, target, isTargetPlayer, sideSecond))
+
+    # Process each move
+    for person, target, isTargPlayer, secondTarg in listBySpeed:
+        if not target.lets or target.lets[0].char != 'G':  # Target is not protecting
+            curMove(person, target, isTargPlayer, secondTarg)
+        else:
+            curDialog.append(f"{target.name} Protected")
+            curDialog.append(f"{person.name}'s attack failed")
+
+    # Reset SSC values
+    SSC = [None] * 4
 
 
 
@@ -442,7 +512,7 @@ def doEnemyTurnOnly():
         enemy2.lets = enemy_choose_letters(enemy2)
         listBySpeed.append((enemy2, player1, True, True))
     for person, target, isTargPlayer, SecondTarg in listBySpeed:
-        doCurTurn(person, target, isTargPlayer, SecondTarg)
+        curMove(person, target, isTargPlayer, SecondTarg)
 
 
 
@@ -571,58 +641,15 @@ def DeitySelect():
 
 
 def needAim(player):
-    return all(letter.char != 'G' for letter in player.lets)
+    return all(letter.char not in ('G', 'H') for letter in player.lets)
+
 
 def targetNotSelf(player):
     """Returns True if any letter in the player's lets is between 'A' and 'F'."""
     return any('A' <= letter.char <= 'F' for letter in player.lets)
 
 
-def turnMoves():
-    global player1, player2, enemy, enemy2, playerTeam, enemyTeam, SSC
 
-    # Randomize enemy attack
-    enemy.lets = enemy_choose_letters(enemy)
-    if enemy2:
-        enemy2.lets = enemy_choose_letters(enemy2)
-
-    # False = left, True = Right (rare one)
-    playTarg1 = enemy2 if SSC[1] else enemy 
-    playTarg2 = enemy2 if SSC[3] else enemy  
-    p1t2 = True if playTarg1 == enemy2 else False
-    p2t2 = True if playTarg2 == enemy2 else False
-
-    enemTarg1 = player1 if not player2 else random.choice([player1, player2])  
-    enemTarg2 = player1 if not player2 else random.choice([player1, player2]) 
-    e1t2 = True if enemTarg1 == player2 else False
-    e2t2 = True if enemTarg2 == player2 else False
-
-    listBySpeed = []
-
-    if player1 and player1.lets and targetNotSelf(player1):
-        listBySpeed.append((player1, playTarg1, False, p1t2))
-    if player2 and player2.lets and targetNotSelf(player2):
-        listBySpeed.append((player2, playTarg2, False, p2t2))
-
-    if enemy and enemy.lets and targetNotSelf(enemy):
-        listBySpeed.append((enemy, enemTarg1, True, e1t2))
-    if enemy2 and enemy2.lets and targetNotSelf(enemy2):
-        listBySpeed.append((enemy2, enemTarg2, True, e2t2))
-
-    if not listBySpeed:
-        curDialog.append("Everyone Didn't Damage")
-        curDialog.append("No Damage Done")
-
-    # Process each move
-    for person, target, isTargPlayer, SecondTarg in listBySpeed:
-
-        # meaning the opponite is not protecting
-        if needAim(target):
-            doCurTurn(person, target, isTargPlayer, SecondTarg)
-        else:
-            curDialog.append(f"{target.name} Protected")
-            curDialog.append(f"{person.name}'s attack failed")
-    SSC = [None, None, None, None]
     
 
 
@@ -844,7 +871,7 @@ def main():
         # Combate move decided ---END TURN---
         if not playerTurn and not sideSelect and not curDialog and not showSwitchMenu:
 
-            turnMoves()
+            curTurn()
 
             
 
