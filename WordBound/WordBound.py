@@ -182,7 +182,8 @@ def drawDeity2(deity, x, y, isPlayer1, playerTurn):
 
 
 def get_random_letters():
-    letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+    letter_options = ['A', 'G', 'H', 'I']
+    # letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
     return [deity.Letter(random.choice(letter_options)) for _ in range(5)]
 
 
@@ -254,7 +255,8 @@ def doCurTurn(person, target, isTargPlayer, SecondTarg):
 
     # Update dialog based on the result
     curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
-    curDialog.append(f"It did {dmg} dmg!")
+    curDialog.append(f"It did {dmg} dmg to '{' '.join([letter.char for letter in target.letters])}'")
+
 
     if peekHP < 1:
         if target:
@@ -429,9 +431,18 @@ def switch(isPlayer, newIdx):
         enemy2 = None
 
 
+# when splitting or switching
+def doEnemyTurnOnly():
+    listBySpeed = [] # let enemy attack first
 
-
-
+    if enemy:
+        enemy.lets = enemy_choose_letters(enemy)
+        listBySpeed.append((enemy, player1, True, False))
+    if enemy2:
+        enemy2.lets = enemy_choose_letters(enemy2)
+        listBySpeed.append((enemy2, player1, True, True))
+    for person, target, isTargPlayer, SecondTarg in listBySpeed:
+        doCurTurn(person, target, isTargPlayer, SecondTarg)
 
 
 
@@ -514,24 +525,38 @@ def DeitySelect():
 
         if yes_rect.collidepoint(mouse_x, mouse_y) and click:
             # Perform the switch logic (implement switching logic here)
-            print(f"Switched to {playerTeam[switchSelected].name}")
+            
             p2Lets = []
             for let in playerTeam[switchSelected].lets[:]:
                     p2Lets.append(let)  
 
-            switch(True, switchSelected)
+            swapBoolEvenText = False
 
-            for let in p2Lets:
-                player1.lets.append(let)
-
-            if player1.lets:
-                separateDeity()
-
-            curDialog.append("Player Switched Deities!")
-            if player2:
-                curDialog.append("They also split in 2!")
+            # if the player lost their last deity or swap in turn
+            if  player1:
+                switch(True, switchSelected)   # swap
+                curDialog.append("Player Swapped Deities")
+                curDialog.append(f"{player1.name} is vunerable!")
+                doEnemyTurnOnly()              # let enemy attack - before splitting
             else:
-                curDialog.append("")
+                switch(True, switchSelected)   # swap
+                curDialog.append(f"Player sent out {player1.name}")
+                swapBoolEvenText = True
+
+            # if player did not get killed
+            if player1:
+
+                if player1:
+                    for let in p2Lets:
+                        player1.lets.append(let)
+
+                if player1 and player1.lets:
+                    separateDeity()
+
+                if player2 and swapBoolEvenText:
+                    curDialog.append("Split in 2!")
+                elif swapBoolEvenText:
+                    curDialog.append("")
 
             switchSelected = -2  # Reset selection after switching
         
@@ -539,6 +564,69 @@ def DeitySelect():
             for let in playerTeam[switchSelected].lets[:]: 
                 playerTeam[switchSelected].lets.remove(let)
             switchSelected = -1  # Cancel selection
+
+
+
+
+
+
+def needAim(player):
+    return all(letter.char != 'G' for letter in player.lets)
+
+def targetNotSelf(player):
+    """Returns True if any letter in the player's lets is between 'A' and 'F'."""
+    return any('A' <= letter.char <= 'F' for letter in player.lets)
+
+
+def turnMoves():
+    global player1, player2, enemy, enemy2, playerTeam, enemyTeam, SSC
+
+    # Randomize enemy attack
+    enemy.lets = enemy_choose_letters(enemy)
+    if enemy2:
+        enemy2.lets = enemy_choose_letters(enemy2)
+
+    # False = left, True = Right (rare one)
+    playTarg1 = enemy2 if SSC[1] else enemy 
+    playTarg2 = enemy2 if SSC[3] else enemy  
+    p1t2 = True if playTarg1 == enemy2 else False
+    p2t2 = True if playTarg2 == enemy2 else False
+
+    enemTarg1 = player1 if not player2 else random.choice([player1, player2])  
+    enemTarg2 = player1 if not player2 else random.choice([player1, player2]) 
+    e1t2 = True if enemTarg1 == player2 else False
+    e2t2 = True if enemTarg2 == player2 else False
+
+    listBySpeed = []
+
+    if player1 and player1.lets and targetNotSelf(player1):
+        listBySpeed.append((player1, playTarg1, False, p1t2))
+    if player2 and player2.lets and targetNotSelf(player2):
+        listBySpeed.append((player2, playTarg2, False, p2t2))
+
+    if enemy and enemy.lets and targetNotSelf(enemy):
+        listBySpeed.append((enemy, enemTarg1, True, e1t2))
+    if enemy2 and enemy2.lets and targetNotSelf(enemy2):
+        listBySpeed.append((enemy2, enemTarg2, True, e2t2))
+
+    if not listBySpeed:
+        curDialog.append("Everyone Didn't Damage")
+        curDialog.append("No Damage Done")
+
+    # Process each move
+    for person, target, isTargPlayer, SecondTarg in listBySpeed:
+
+        # meaning the opponite is not protecting
+        if needAim(target):
+            doCurTurn(person, target, isTargPlayer, SecondTarg)
+        else:
+            curDialog.append(f"{target.name} Protected")
+            curDialog.append(f"{person.name}'s attack failed")
+    SSC = [None, None, None, None]
+    
+
+
+
 
 # make buttons for splitting, switching, retreat?
 # screen to see your team
@@ -587,7 +675,7 @@ def main():
                         ipX, ipY = 75, playY + buttonY
                         secondStart = None if not (player2 and player2.lets) else ipX + (26 * len(player2.letters)) + 80
 
-                        if player1 and player1.lets:
+                        if player1 and player1.lets and needAim(player1):
                             if ipX <= event.pos[0] <= ipX + 20 and ipY + 45 <= event.pos[1] <= ipY + 65:
                                 SSC[0] = not SSC[0]
                                 SSC[1] = False
@@ -595,7 +683,7 @@ def main():
                                 SSC[1] = not SSC[1]  
                                 SSC[0] = False
 
-                        if player2 and player2.lets:
+                        if player2 and player2.lets and needAim(player2):
                             if secondStart <= event.pos[0] <= secondStart + 20 and ipY + 45 <= event.pos[1] <= ipY + 65:
                                 SSC[2] = not SSC[2]  
                                 SSC[3] = False
@@ -677,22 +765,32 @@ def main():
 
                     if btn == "Battle" and (player1.lets or (player2 and player2.lets)): #----------------------------------------------------------
                         
+                        # needAim(player)
+
                         if sideSelect:# the aiming for side select, which letter's need which side----------
-                            if ((not player1.lets or (SSC[0] or SSC[1])) and (not (player2 and player2.lets) or (SSC[2] or SSC[3]))):
-                                if not (player2 and player2.lets) or (SSC[2] or SSC[3]):
+                            LTarg = (SSC[0] or SSC[1])
+                            RTarg = (SSC[2] or SSC[3])
+
+                            if (not player1.lets) or LTarg or (not needAim(player1)):
+                                if (not player2) or (not player2.lets) or RTarg or (not needAim(player2)):
                                     playerTurn = False
                                     sideSelect = False
+
+
                         else:
-                            
                             stamina_cost = player1.calculate_combo_stamina_cost()
                             if stamina_cost <= player1.comboStamina:
                                 if (player1.lets or (player2 and player2.lets)) and enemy2:
                                     SSC = [None, None, None, None]
-                                    sideSelect = True
+                                    if needAim(player1) or (player2 and needAim(player2)):
+                                        sideSelect = True
+                                    else:
+                                        playerTurn = False
+                                        sideSelect = False
                                 elif (player1.lets or (player2 and player2.lets)) and not enemy2:
                                     SSC = [None, None, None, None]
                                     playerTurn = False
-                                    print("haazaa")
+                                    
                     elif btn == "Battle":
                         curDialog.append("No letters selected!")
                         curDialog.append("Try Again")
@@ -702,16 +800,7 @@ def main():
                         curDialog.append(f"{player1.name} is Splitting ")
                         curDialog.append("Vulnerable to Attack")
 
-                        listBySpeed = [] # let enemy attack first
-
-                        if enemy:
-                            enemy.lets = enemy_choose_letters(enemy)
-                            listBySpeed.append((enemy, player1, True, False))
-                        if enemy2:
-                            enemy2.lets = enemy_choose_letters(enemy2)
-                            listBySpeed.append((enemy2, player1, True, True))
-                        for person, target, isTargPlayer, SecondTarg in listBySpeed:
-                            doCurTurn(person, target, isTargPlayer, SecondTarg)
+                        doEnemyTurnOnly()
 
                         if player1.curHP > 1:
                             playerTurn = False # player chose to split (power of letter H)
@@ -755,45 +844,9 @@ def main():
         # Combate move decided ---END TURN---
         if not playerTurn and not sideSelect and not curDialog and not showSwitchMenu:
 
-            # Player has their words and also which target to hit ----------------- 
-            if player1.lets or (player2 and player2.lets):
+            turnMoves()
 
-                # Randomize enemy attack
-                enemy.lets = enemy_choose_letters(enemy)
-                if enemy2:
-                    enemy2.lets = enemy_choose_letters(enemy2)
-
-                # False = left, True = Right (rare one)
-                playTarg1 = enemy2 if SSC[1] else enemy 
-                playTarg2 = enemy2 if SSC[3] else enemy  
-                p1t2 = True if playTarg1 == enemy2 else False
-                p2t2 = True if playTarg2 == enemy2 else False
-
-                enemTarg1 = player1 if not player2 else random.choice([player1, player2])  
-                enemTarg2 = player1 if not player2 else random.choice([player1, player2]) 
-                e1t2 = True if enemTarg1 == player2 else False
-                e2t2 = True if enemTarg2 == player2 else False
-
-                listBySpeed = []
-
-                if player1 and player1.lets:
-                    listBySpeed.append((player1, playTarg1, False, p1t2))
-                if player2 and player2.lets:
-                    listBySpeed.append((player2, playTarg2, False, p2t2))
-
-                if enemy and enemy.lets:
-                    listBySpeed.append((enemy, enemTarg1, True, e1t2))
-                if enemy2 and enemy2.lets:
-                    listBySpeed.append((enemy2, enemTarg2, True, e2t2))
-
-                #   --organize by speed later, idk what crahs bug---     listBySpeed.sort(key=lambda x: x[], reverse=True)
-
-                # Process each move
-                for person, target, isTargPlayer, SecondTarg in listBySpeed:
-                    doCurTurn(person, target, isTargPlayer, SecondTarg)
-                    
-                
-                SSC = [None, None, None, None]
+            
 
             playerTurn = True  # Reset for the next turn
 
