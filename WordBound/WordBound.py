@@ -277,9 +277,14 @@ def calculate_damage(attacking, receiving):
 def curMove(person, target, SecondTarg):
     global player1, player2, enemy, enemy2, curDialog, playerTeam, enemyTeam, tempBattleDialog
 
+    print(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
+
+    # --- If protect is used ---
     if target.protect >= 3 and target != person:
         curDialog.append(f"{person.name} hit into")
-        curDialog.append(f"protected {person.name}")
+        curDialog.append(f"protected {target.name}")
+        return
+    elif person.protect >= 3 and not needAim(person):
         return
 
     targTeam = playerTeam if (target == player1 or target == player2) else enemyTeam
@@ -299,7 +304,7 @@ def curMove(person, target, SecondTarg):
     
     curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
     if dmg > 0:
-        curDialog.append(f"It did {dmg} dmg!")
+        curDialog.append(f"It did {dmg} dmg on {target.name}!")
     else:
         curDialog.append(f"")
 
@@ -339,6 +344,7 @@ def statChangingLetters(letterName):
 
 # chekc if the person is protecting
 def checkBeforeTurnStatChanges(person):
+    global curDialog
     for i, letter in enumerate(person.lets):
         if letter.char == "G" and len(person.lets) > 1:
             person.protect += 1 # 0 = none, 1 = half protect, 2 = full protect
@@ -346,13 +352,11 @@ def checkBeforeTurnStatChanges(person):
                 person.protect = 3
                 curDialog.append(f"{person.name} Fully Protected")
                 curDialog.append(f"jucg")
-            else:
-                curDialog.append(f"{person.name} partial Protect")
-                curDialog.append(f"")
             break
         elif letter.char == "G" :
             person.protect = 3 # 0 = none, 1 = half protect, 2 = full protect
-            
+            curDialog.append(f"{person.name} Fully Protected")
+            curDialog.append(f"")
             break
 
 
@@ -396,20 +400,27 @@ def curTurn():
             
             hasTarget = (SSC[0] or SSC[1]) if not isSecond else (SSC[2] or SSC[3])
 
-            if hasTarget:
+            if hasTarget and enemy2:
                 if (not isSecond and SSC[0]) or (isSecond and SSC[2]):
                     target = enemy
                 elif (not isSecond and SSC[1]) or (isSecond and SSC[3]):
                     target = enemy2
 
-        listBySpeed.append((person, target, isSecond))
+            # when there is only 1 enemy, so you don't attack yourself
+            elif not enemy2 and needAim(person):
+                target = enemy
+            
+
+        TargIsSecond = True if (target == player2 or target == enemy2) else False
+
+        listBySpeed.append((person, target, TargIsSecond))
 
     # Process each move
-    for person, target, secondTarg in listBySpeed:
+    for person, target, TargIsSecond in listBySpeed:
         
         if target and target != person:
             print(str(target.protect) + " " + str(target.name))
-        curMove(person, target, secondTarg)
+        curMove(person, target, TargIsSecond)
 
     # Reset SSC values
     SSC = [None] * 4

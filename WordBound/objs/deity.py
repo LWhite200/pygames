@@ -32,7 +32,7 @@ class Letter:
         self.char = char.upper()
         self.battleType = self.ranColor()
         self.color1 = color_mapping(self.battleType)
-        self.tier = random.randint(0, 2)
+        self.tier = random.randint(1, 3)
 
         self.power = 50 if self.char in ["A", "B"] else 0
         self.statChange = "" if self.char in ["A", "B"] else self.getStatChange(self.char)
