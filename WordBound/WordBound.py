@@ -274,15 +274,15 @@ def calculate_damage(attacking, receiving):
 
 
 
-def curMove(person, target, isTargPlayer, SecondTarg):
+def curMove(person, target, SecondTarg):
     global player1, player2, enemy, enemy2, curDialog, playerTeam, enemyTeam, tempBattleDialog
 
-    if target.protect >= 3:
+    if target.protect >= 3 and target != person:
         curDialog.append(f"{person.name} hit into")
         curDialog.append(f"protected {person.name}")
         return
 
-    targTeam = playerTeam if isTargPlayer else enemyTeam
+    targTeam = playerTeam if (target == player1 or target == player2) else enemyTeam
 
     if person.curHP <= 0 or target.curHP <= 0:
         return
@@ -314,7 +314,7 @@ def curMove(person, target, isTargPlayer, SecondTarg):
             curDialog.append(f"{target.name}'s fainted!")
             curDialog.append(f"")
 
-        if isTargPlayer:
+        if targTeam == playerTeam:
             if SecondTarg:
                 player2 = None  
             else:
@@ -330,6 +330,8 @@ def curMove(person, target, isTargPlayer, SecondTarg):
     # Reset things
     # ---blank for now as how is the stamina undated, does each deity have unique???---    person.update_stamina(person.calculate_combo_stamina_cost())
     person.lets = []
+
+
 
 
 def statChangingLetters(letterName):
@@ -364,32 +366,50 @@ def curTurn():
 
     # List of all possible combatants
     deityList = [
-        (player1, SSC[1], False),
-        (player2, SSC[3], False),
-        (enemy, None, True),
-        (enemy2, None, True)
+        (player1, False),
+        (player2, False),
+        (enemy,   True),
+        (enemy2,  True)
     ]
 
     listBySpeed = []
 
-    # Assign targets to deities, do stat buffs
-    for person, isTargetEnemy2, isTargetPlayer in deityList:
+    # == 0: self, 1:player1, 2:player2, 3:enemy, 4:enemy2
+    for person, isNotPlayer in deityList:
+
         if not person or not person.lets:
-            continue  # Skip if no character or no selected attack
-        checkBeforeTurnStatChanges(person) # check to see if cur-turn stat increases
-        if isTargetPlayer:
-            target = player1 if not player2 else random.choice([player1, player2])
-            sideSecond = target == player2
+            continue  
+
+        checkBeforeTurnStatChanges(person) # protect or something with priority
+        
+        isSecond = person == (player2 or enemy2)
+        target = person
+
+        # --If Enemy--
+        if isNotPlayer:
+            if needAim(person):
+                target = player1 if not player2 else random.choice([player1, player2])
+
+        #-- If Player
         else:
-            target = enemy2 if isTargetEnemy2 else enemy
-            sideSecond = target == enemy2
-        listBySpeed.append((person, target, isTargetPlayer, sideSecond))
+            # person, target, isSecond
+            
+            hasTarget = (SSC[0] or SSC[1]) if not isSecond else (SSC[2] or SSC[3])
+
+            if hasTarget:
+                if (not isSecond and SSC[0]) or (isSecond and SSC[2]):
+                    target = enemy
+                elif (not isSecond and SSC[1]) or (isSecond and SSC[3]):
+                    target = enemy2
+
+        listBySpeed.append((person, target, isSecond))
 
     # Process each move
-    for person, target, isTargPlayer, secondTarg in listBySpeed:
+    for person, target, secondTarg in listBySpeed:
         
-        print(str(target.protect) + " " + str(target.name))
-        curMove(person, target, isTargPlayer, secondTarg)
+        if target and target != person:
+            print(str(target.protect) + " " + str(target.name))
+        curMove(person, target, secondTarg)
 
     # Reset SSC values
     SSC = [None] * 4
