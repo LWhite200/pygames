@@ -184,7 +184,7 @@ def drawDeity2(deity, x, y, isPlayer1, playerTurn):
 
 
 def get_random_letters():
-    letter_options = ['A', 'G', 'H', 'I']
+    letter_options = ['A', 'C', 'H', 'I']
     # letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
     return [deity.Letter(random.choice(letter_options)) for _ in range(5)]
 
@@ -207,6 +207,24 @@ def enemy_split_random(enemy):
     chosen_letters = random.sample(enemy.letters, num_letters)
     return chosen_letters
 
+
+# -------- HELPER FUNCTIONS --------
+
+def needAim(player):
+    return not all(letter.char in ('C', 'D', 'G', 'H') for letter in player.lets)
+
+def hitMulti(player):
+    return any(letter.char in ('C', 'D') for letter in player.lets)
+
+# Returns a person with only multi-hitting moves
+def MultiHitPerson(person):
+    newPerson = copy.deepcopy(person)
+    newPerson.lets = [letter for letter in newPerson.lets if letter.char in ('C', 'D')]
+    return newPerson
+
+def targetNotSelf(player):
+    """Returns True if any letter in the player's lets is between 'A' and 'F'."""
+    return any('A' <= letter.char <= 'F' for letter in player.lets)
 
 # The power is the sum of all attacks 
 # if the use of 'G', defense is doubled
@@ -260,13 +278,13 @@ def calculate_damage(attacking, receiving):
                     setattr(target, stat, getattr(target, stat) + change)
 
 
-
-    if base_damage > aboveOrBelow and base_damage > 0:
-        curDialog.append("Super Effective!!!")
-        curDialog.append(f"")
-    elif base_damage < aboveOrBelow and base_damage > 0:
-        curDialog.append("Not That Effective")
-        curDialog.append(f"")
+    
+    #if base_damage > aboveOrBelow and base_damage > 0:
+       # curDialog.append("Super Effective!!!")
+       # curDialog.append(f"")
+    #elif base_damage < aboveOrBelow and base_damage > 0:
+       # curDialog.append("Not That Effective")
+       # curDialog.append(f"")
 
     return base_damage
 
@@ -277,60 +295,94 @@ def calculate_damage(attacking, receiving):
 def curMove(person, target, SecondTarg):
     global player1, player2, enemy, enemy2, curDialog, playerTeam, enemyTeam, tempBattleDialog
 
-    print(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
-
-    # --- If protect is used ---
-    if target.protect >= 3 and target != person:
-        curDialog.append(f"{person.name} hit into")
-        curDialog.append(f"protected {target.name}")
-        return
-    elif person.protect >= 3 and not needAim(person):
-        return
-
     targTeam = playerTeam if (target == player1 or target == player2) else enemyTeam
+    t1, t2 = target, None
 
-    if person.curHP <= 0 or target.curHP <= 0:
-        return
+    # If person has multi-hit, find what their other target is (defaut is player1 or enemy [1])
+    if hitMulti(person):
+        if targTeam == playerTeam:
+            t2 = player1 if (t1 == player2) else player2
+        else:
+            t2 = enemy if (t1 == enemy2) else enemy2
+        
+        
 
-    dmg = calculate_damage(person, target)
+    # What move
+    curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
+    curDialog.append(f"")
 
-    peekHP = 0
-    target.take_damage(dmg) 
-    peekHP = target.curHP
-    targTeam[0].curHP -= dmg
-    if targTeam[0].curHP < 0:
-        targTeam[0].curHP = 0
+    for targ in [t1, t2]:
+
+        if not targ:
+            continue
+
+        
+
+        # --- If protect is used ---
+        if targ.protect >= 3 and targ != person:
+            curDialog.append(f"{person.name} hit into")
+            curDialog.append(f"protected {targ.name}")
+            continue
+        
+        # stop from hitting self
+        elif person.protect >= 3 and not needAim(person):
+            continue
+
+        if person.curHP <= 0 or targ.curHP <= 0:
+            continue
+
+
+        temp = []
+        # So only attacks that hit multiple targets him the second target
+        if targ == t2:
+            temp = MultiHitPerson(person)
+            print(f"{temp.name} {len(temp.lets)}")
+            dmg = calculate_damage(temp, targ)
+        else:
+            print(f"{person.name} {len(person.lets)}")
+            dmg = calculate_damage(person, targ)
+
+        if temp:
+            person.lets = temp
+
+        peekHP = 0
+        targ.take_damage(dmg) 
+        peekHP = targ.curHP
+        targTeam[0].curHP -= dmg
+        if targTeam[0].curHP < 0:
+            targTeam[0].curHP = 0
 
     
-    curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
-    if dmg > 0:
-        curDialog.append(f"It did {dmg} dmg on {target.name}!")
-    else:
-        curDialog.append(f"")
-
-    for dialog in tempBattleDialog:
-        curDialog.append(dialog)
-    tempBattleDialog = []
-
-
-    # remove target if they died
-    if peekHP < 1:
-        if target:
-            curDialog.append(f"{target.name}'s fainted!")
+        if dmg > 0:
+            curDialog.append(f"It did {dmg} dmg on {targ.name}!")
             curDialog.append(f"")
 
-        if targTeam == playerTeam:
-            if SecondTarg:
-                player2 = None  
+        for dialog in tempBattleDialog:
+            curDialog.append(dialog)
+        tempBattleDialog = []
+
+
+        # remove targ if they died
+        if peekHP < 1:
+
+            ThisSecond = True if targ == (player2 or enemy2) else False
+
+            if targ:
+                curDialog.append(f"{targ.name}'s fainted!")
+                curDialog.append(f"")
+
+            if targTeam == playerTeam:
+                if ThisSecond:
+                    player2 = None  
+                else:
+                    player1 = copy.deepcopy(player2)  
+                    player2 = None
             else:
-                player1 = copy.deepcopy(player2)  
-                player2 = None
-        else:
-            if SecondTarg:
-                enemy2 = None  
-            else:
-                enemy = copy.deepcopy(enemy2)  
-                enemy2 = None
+                if ThisSecond:
+                    enemy2 = None  
+                else:
+                    enemy = copy.deepcopy(enemy2)  
+                    enemy2 = None
 
     # Reset things
     # ---blank for now as how is the stamina undated, does each deity have unique???---    person.update_stamina(person.calculate_combo_stamina_cost())
@@ -393,12 +445,18 @@ def curTurn():
         if isNotPlayer:
             if needAim(person):
                 target = player1 if not player2 else random.choice([player1, player2])
+            if hitMulti(person):
+                target = player1
 
         #-- If Player
         else:
             # person, target, isSecond
             
             hasTarget = (SSC[0] or SSC[1]) if not isSecond else (SSC[2] or SSC[3])
+
+            # Will show other in the curMove
+            if hitMulti(person):
+                target = enemy
 
             if hasTarget and enemy2:
                 if (not isSecond and SSC[0]) or (isSecond and SSC[2]):
@@ -417,9 +475,6 @@ def curTurn():
 
     # Process each move
     for person, target, TargIsSecond in listBySpeed:
-        
-        if target and target != person:
-            print(str(target.protect) + " " + str(target.name))
         curMove(person, target, TargIsSecond)
 
     # Reset SSC values
@@ -598,12 +653,14 @@ def doEnemyTurnOnly():
 
     if enemy:
         enemy.lets = enemy_choose_letters(enemy)
-        listBySpeed.append((enemy, player1, True, False))
+        listBySpeed.append((enemy, player1))
     if enemy2:
         enemy2.lets = enemy_choose_letters(enemy2)
-        listBySpeed.append((enemy2, player1, True, True))
-    for person, target, isTargPlayer, SecondTarg in listBySpeed:
-        curMove(person, target, isTargPlayer, SecondTarg)
+        listBySpeed.append((enemy2, player1))
+
+    for person, target in listBySpeed:
+        TargIsSecond = True if (target == player2 or target == enemy2) else False
+        curMove(person, target, TargIsSecond)
 
 
 
@@ -731,13 +788,7 @@ def DeitySelect():
 
 
 
-def needAim(player):
-    return not all(letter.char in ('G', 'H') for letter in player.lets)
 
-
-def targetNotSelf(player):
-    """Returns True if any letter in the player's lets is between 'A' and 'F'."""
-    return any('A' <= letter.char <= 'F' for letter in player.lets)
 
 
 
@@ -1026,14 +1077,14 @@ def main():
                 curDialog.append(f"{winner_name} WINS!!!!")
 
             
-
+        # Enemy Loses both their deities, try to switch or declare winner
         if not (enemy or enemy2) and not haveWinner:  
             haveWinner = True
             if any(deity.curHP > 0 for deity in enemyTeam):
                 haveWinner = False
                 
                 for i in range(1, len(enemyTeam)):
-                    if enemyTeam[i].curHP > 0:
+                    if enemyTeam[i].curHP > 0 and not curDialog:
                         
                         switch(False, i)
                         curDialog.append(f"{enemyTeam[0].name} sent out")
