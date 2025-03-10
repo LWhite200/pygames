@@ -184,7 +184,7 @@ def drawDeity2(deity, x, y, isPlayer1, playerTurn):
 
 
 def get_random_letters():
-    letter_options = ['A', 'B', 'C', 'D', 'E' , 'F', 'G', 'H', 'I']
+    letter_options = ['G', 'H', 'I'] # 'A', 'B', 'C', 'D', 'E' , 'F', 'G', 'H', 'I']
     # letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
     return [deity.Letter(random.choice(letter_options)) for _ in range(5)]
 
@@ -215,6 +215,9 @@ def needAim(player):
 
 def hitMulti(player):
     return any(letter.char in ('C', 'D') for letter in player.lets)
+
+def mustAlone(player, letter):
+    return ((player.lets and player.lets[0].char in ('G')) and letter != player.lets[0]) or (player.lets and letter.char in ('G') and letter != player.lets[0])
 
 # Returns a person with only multi-hitting moves
 def MultiHitPerson(person):
@@ -848,8 +851,11 @@ def main():
                                     y = playY + buttonY
 
                                     if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                        if letter not in player1.lets and letter and (not player2 or letter not in player2.lets):
+                                        if letter not in player1.lets and letter and (not player2 or letter not in player2.lets) and not mustAlone(player1, letter):
                                             player1.lets.append(letter)
+                                        elif mustAlone(player1, letter):
+                                            curDialog.append(f"{player1.name}'s {letter.char} must be alone")
+                                            curDialog.append("")
                                         else:
                                             player1.lets.remove(letter)
 
@@ -860,8 +866,11 @@ def main():
                                     y = playY + buttonY
 
                                     if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                        if letter not in player2.lets and letter not in player2.lets:
+                                        if letter not in player2.lets and letter not in player2.lets and not mustAlone(player2, letter):
                                             player2.lets.append(letter)
+                                        elif mustAlone(player2, letter):
+                                            curDialog.appebd(f"{player2.name}'s {letter.char} must be alone")
+                                            curDialog.append("")
                                         else:
                                             player2.lets.remove(letter)
 
