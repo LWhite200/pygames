@@ -184,7 +184,7 @@ def drawDeity2(deity, x, y, isPlayer1, playerTurn):
 
 
 def get_random_letters():
-    letter_options = ['A', 'C', 'H', 'I']
+    letter_options = ['A', 'B', 'C', 'D', 'E' , 'F', 'G', 'H', 'I']
     # letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
     return [deity.Letter(random.choice(letter_options)) for _ in range(5)]
 
@@ -211,7 +211,7 @@ def enemy_split_random(enemy):
 # -------- HELPER FUNCTIONS --------
 
 def needAim(player):
-    return not all(letter.char in ('C', 'D', 'G', 'H') for letter in player.lets)
+    return not all(letter.char in ("C", "D", "F", "G", "I", "K") for letter in player.lets)
 
 def hitMulti(player):
     return any(letter.char in ('C', 'D') for letter in player.lets)
@@ -236,9 +236,8 @@ def targetNotSelf(player):
 def calculate_damage(attacking, receiving):
     global curDialog, tempBattleDialog
 
-    attacking.removeTemporary() # remove all their temporary stat changes
-    aboveOrBelow = sum(letter.power for letter in attacking.lets) # for display
-    base_damage = 0 # sum(letter.power for letter in word)
+    attacking.removeTemporary()
+    base_damage = 0 
 
     #---------------------------------------------------------------------------------
     for i, letter in enumerate(attacking.lets):
@@ -246,9 +245,14 @@ def calculate_damage(attacking, receiving):
         letterDmg = letter.power
         oppType = receiving.battleType
         letterStat = letter.statChange.split(",")
+
+        attribute = letterStat[0] # no need to change
+        direction = 1 if letterStat[1] == 'increase' else -1 if letterStat[1] == 'decrease' else letterStat[1] # increase, decrease, 'burn'
+        who = attacking if letterStat[1] == 'user' else receiving
+
         
-        # Calculate Damage
-        if letterDmg > 0:
+
+        if attribute == 'curHP':
             if letterType in weaknesses[oppType]:
                 base_damage += letterDmg + 10
             elif letterType in resistances[oppType]:
@@ -256,35 +260,13 @@ def calculate_damage(attacking, receiving):
             else:
                 base_damage += letterDmg
 
-        # Calculate Changes to enemy stats       
-        for target, role in [(receiving, "opp"), (attacking, "user")]:
-            if letterStat and len(letterStat) > 2 and letterStat[2] == role and letter.char != "G":
-                stat = letterStat[0]
-
-                stat = ("stat" if i == 0 else "temp") + stat
-
-                if target == attacking:
-                    tempBattleDialog.append(f"[{letter.char} : {str(i+1)}] {letterStat[1]}d")
-                    tempBattleDialog.append(f"it's {stat}")
-                else:
-                    tempBattleDialog.append(f"{str(i+1)} : [ {letter.char} ] {letterStat[1]}d")
-                    tempBattleDialog.append(f"{target.name}'s {stat} ")
-
-                if hasattr(target, stat):  # Ensure target has the stat attribute
-                    if letterStat[1] == "increase":
-                        change = 1
-                    else:
-                        change = -1
-                    setattr(target, stat, getattr(target, stat) + change)
-
-
-    
-    #if base_damage > aboveOrBelow and base_damage > 0:
-       # curDialog.append("Super Effective!!!")
-       # curDialog.append(f"")
-    #elif base_damage < aboveOrBelow and base_damage > 0:
-       # curDialog.append("Not That Effective")
-       # curDialog.append(f"")
+        elif attribute in ('attack', 'defense', 'accuracy'):
+            attribute = "temp" + attribute if i >0 else attribute # defense or tempdefense stat
+            changedHow = "increased" if direction == 1 else "decreased"
+            setattr(who, attribute, getattr(who, attribute) + direction) # --- do this chat gbt
+            thePerson = "it's" if who == attacking else str(receiving.name)
+            curDialog.append(f"[{letter.char} : {str(i+1)}] {changedHow}")
+            curDialog.append(f"{thePerson} {attribute}")
 
     return base_damage
 
@@ -295,82 +277,63 @@ def calculate_damage(attacking, receiving):
 def curMove(person, target, SecondTarg):
     global player1, player2, enemy, enemy2, curDialog, playerTeam, enemyTeam, tempBattleDialog
 
+    # If person has multi-hit, find what their other target is (defaut is player1 or enemy [1])
     targTeam = playerTeam if (target == player1 or target == player2) else enemyTeam
     t1, t2 = target, None
-
-    # If person has multi-hit, find what their other target is (defaut is player1 or enemy [1])
     if hitMulti(person):
         if targTeam == playerTeam:
             t2 = player1 if (t1 == player2) else player2
         else:
             t2 = enemy if (t1 == enemy2) else enemy2
         
-        
-
-    # What move
     curDialog.append(f"{person.name} used '{' '.join([letter.char for letter in person.lets])}'")
     curDialog.append(f"")
 
     for targ in [t1, t2]:
-
         if not targ:
             continue
-
-        
 
         # --- If protect is used ---
         if targ.protect >= 3 and targ != person:
             curDialog.append(f"{person.name} hit into")
             curDialog.append(f"protected {targ.name}")
             continue
-        
-        # stop from hitting self
         elif person.protect >= 3 and not needAim(person):
             continue
-
         if person.curHP <= 0 or targ.curHP <= 0:
             continue
 
-
+        # So only attacks that hit multiple targets hit the second target
         temp = []
-        # So only attacks that hit multiple targets him the second target
         if targ == t2:
             temp = MultiHitPerson(person)
-            print(f"{temp.name} {len(temp.lets)}")
             dmg = calculate_damage(temp, targ)
         else:
-            print(f"{person.name} {len(person.lets)}")
             dmg = calculate_damage(person, targ)
-
         if temp:
             person.lets = temp
 
+        # calculate the damage done
+        # also do some dialog display
         peekHP = 0
         targ.take_damage(dmg) 
         peekHP = targ.curHP
         targTeam[0].curHP -= dmg
         if targTeam[0].curHP < 0:
             targTeam[0].curHP = 0
-
-    
         if dmg > 0:
             curDialog.append(f"It did {dmg} dmg on {targ.name}!")
             curDialog.append(f"")
-
         for dialog in tempBattleDialog:
             curDialog.append(dialog)
         tempBattleDialog = []
 
-
         # remove targ if they died
         if peekHP < 1:
-
             ThisSecond = True if targ == (player2 or enemy2) else False
-
             if targ:
                 curDialog.append(f"{targ.name}'s fainted!")
                 curDialog.append(f"")
-
             if targTeam == playerTeam:
                 if ThisSecond:
                     player2 = None  
@@ -387,6 +350,9 @@ def curMove(person, target, SecondTarg):
     # Reset things
     # ---blank for now as how is the stamina undated, does each deity have unique???---    person.update_stamina(person.calculate_combo_stamina_cost())
     person.lets = []
+
+
+
 
 
 
@@ -1018,6 +984,7 @@ def main():
             for person in peopleGame:
                 if person:
                     person.protect = 0
+
 
             
 

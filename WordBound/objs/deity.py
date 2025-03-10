@@ -35,41 +35,106 @@ class Letter:
         self.tier = random.randint(1, 3)
 
         self.power = 50 if self.char in ["A", "B"] else 25 if self.char in ["C", "D"] else 0
-        self.statChange = "" if self.char in ["A", "B"] else self.getStatChange(self.char)
+        self.statChange = self.getStatChange(self.char)
 
         self.Accuracy = 100
 
     def getStatChange(self, letter):
         
-        # letters not present: A, B, C, D
+        # notNeedAim --- ('C', 'D', 'G', 'H', 'F', 'I', 'K')
 
-        # status 
-        if letter == "E":
-            return "Accuracy,increase,user"
+        # multi hit ---- ('C', 'D') or contains 'M'
 
-        # Heal
-        elif letter == "F":
-            return "Accuracy,decrease,opp"
+        # ---- Must Be Alone ---- ("G", U, V, J)
+
+        # must be paired with attacking (M, I, S)
+
+        # ("C", "D", "F", "G", "I", "K")
+
+        if letter == "A":
+            return "curHP,decrease,opp"
         
-        # Protect, must be alone for full protect, else it is 'wide guard' with slight defense boost
+        elif letter == "B":
+            return "curHP,decrease,opp"
+        
+        elif letter == "C":
+            return "curHP,decrease,opp"
+        
+        elif letter == "D":
+            return "curHP,decrease,opp"
+        
+        elif letter == "E":
+            return "attack,decrease,opp"
+
+        elif letter == "F":
+            return "attack,increase,user"
+
         elif letter == "G":
-            return "Defense,increase,user"
-
-        # Current Move Accuracy increase, no miss?
+            return "PROTECT,increase,user"
+        
         elif letter == "H":
-            return "Defense,Increase,user"
+            return "defense,decrease,opp"
 
-        # Changes weather if out front, else temporary current turn weather change
         elif letter == "I":
-            return "Accuracy,decrease,opp"
+            return "defense,increase,user"
+        
+        elif letter == "J":
+            return "accuracy,decrease,opp"
 
-        # User cannot switch out [j, idk abouit k and L]
+        elif letter == "K":
+            return "accuracy,increase,user"
+        
+
+        
+
+
+
+
+        
+        elif letter == "L":
+            return "Perish Song"
+        
+        elif letter == "M":
+            return "weather"
+        
+        elif letter == "N":
+            return "MEAN LOOK"
+        
+        # ---- Must be paired with attacking ----
+        elif letter == "O":
+            return "MULTI-ATTACK"
+        
+        elif letter == "P":
+            return "Multi-stat"
+        
+        elif letter == "Q":
+            return "FakeOut"
+        
+
+
+
+
+
+
+        elif letter == "R":
+            return "BURN"
+        
+        elif letter == "S":
+            return "SHOCK"
+        
+        elif letter == "T":
+            return "FREEZE"
+
+        # -- Stat changing below ---
+
+        # ---- ATTACK CHANGE ----
+        
+        
+        # ---- DEFENSE CHANGE ----
+       
+
         else:
             return ""
-
-    def getRandomStat(self, isStatus):
-        if not isStatus:
-            return random.choice(["speed", "physical", "special", "Accuracy"])
 
     def ranColor(self):
         colors = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
@@ -88,36 +153,36 @@ class Deity:
         self.letters = letters # What the deity can use
         self.lets = []         # current move the player is choosing to do
 
-        self.physical = 100
-        self.defense = 100
-        self.special = 100
-        self.Accuracy = 100
+        self.baseAttack = 100
+        self.baseDefense = 100
+        self.baseSpecial = 100
+        self.baseAccuracy = 100
 
         # -- stats below are stages, out of 6. 1/4 for all stat increase so maximum of *2.5
 
         self.protect = 0 # 0 = not, 1 = not first, 2 = 2/3, 3 = total protect
 
         # may remain entire game
-        self.statPhysical = 0
-        self.statDefense = 0
-        self.statSpecial = 0
-        self.statAccuracy = 0
+        self.attack = 0
+        self.defense = 0
+        self.special = 0
+        self.accuracy = 0
 
         # for the specific turn
-        self.tempPhysical = 0
-        self.tempDefense = 0
-        self.tempSpecial = 0
-        self.tempAccuracy = 0
+        self.tempattack = 0
+        self.tempdefense = 0
+        self.tempspecial = 0
+        self.tempaccuracy = 0
         
         self.comboStamina = 5
         self.battleType = self.randType()
         self.battleColor = color_mapping(self.battleType)
 
     def removeTemporary(self):
-        self.tempPhysical = 0
-        self.tempDefense = 0
-        self.tempSpecial = 0
-        self.tempAccuracy = 0
+        self.tempattack = 0
+        self.tempdefense = 0
+        self.tempspecial = 0
+        self.tempaccuracy = 0
 
     def take_damage(self, damage):
         self.curHP -= damage
