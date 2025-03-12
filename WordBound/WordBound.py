@@ -116,6 +116,9 @@ def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, play
         global curDialog
         boxX, boxY = x, y
         curFont = font
+
+        color = color_mapping(letter.battleType)
+
         if hovered and not selected and isPlayer1 and not playerTurn and not curDialog:
             x -= 4
             y -= 4
@@ -123,10 +126,10 @@ def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, play
             rect_size = 50  # Slightly bigger
             boxX -= 5
             boxY -= 5
-            color = tuple(max(0, c - 75) for c in letter.color1)  # Darker color
+            color = tuple(max(0, c - 75) for c in color)  # Darker color
         else:
             rect_size = 40
-            color = letter.color1
+            color = color
         pygame.draw.rect(screen, color, (boxX, boxY, rect_size, rect_size))
         border_color = (0, 155, 255) if selected and isPlayer1 else (255, 255, 255)
         pygame.draw.rect(screen, border_color, (boxX, boxY, rect_size, rect_size), 3)
@@ -138,14 +141,14 @@ def drawLetter(letter, x, y, selected=False, hovered=False, isPlayer1=True, play
     
 def drawDeity(deity, x, y, isPlayer1, playerTurn):
         global player2, enemy2
-        text = font.render(f"{deity.name} (HP: {deity.curHP})", True, deity.battleColor)
+        text = font.render(f"{deity.name} (HP: {deity.curHP})", True, color_mapping(deity.battleType))
 
         second = player2 if player2 and isPlayer1 else None
         if not second:
             second = enemy2 if enemy2 and not isPlayer1 else None
 
         if second:
-            text = smallfont.render(f"{deity.name} ({deity.curHP})  |  {second.name} ({second.curHP})", True, deity.battleColor)
+            text = smallfont.render(f"{deity.name} ({deity.curHP})  |  {second.name} ({second.curHP})", True, color_mapping(deity.battleType))
         screen.blit(text, (x - 10, y + 10))
 
         spaceBetweenGroups = 10  # The space between the two groups of letters
@@ -183,10 +186,7 @@ def drawDeity2(deity, x, y, isPlayer1, playerTurn):
             drawLetter(letter, newX, newY, letter in deity.lets, hovered, isPlayer1, playerTurn)
 
 
-def get_random_letters():
-    letter_options = ['G', 'H', 'I'] # 'A', 'B', 'C', 'D', 'E' , 'F', 'G', 'H', 'I']
-    # letter_options = ['A', 'A', 'B', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
-    return [deity.Letter(random.choice(letter_options)) for _ in range(5)]
+
 
 
 def enemy_choose_letters(enemy):
@@ -216,8 +216,7 @@ def needAim(player):
 def hitMulti(player):
     return any(letter.char in ('C', 'D') for letter in player.lets)
 
-def mustAlone(player, letter):
-    return ((player.lets and player.lets[0].char in ('G')) and letter != player.lets[0]) or (player.lets and letter.char in ('G') and letter != player.lets[0])
+
 
 # Returns a person with only multi-hitting moves
 def MultiHitPerson(person):
@@ -244,32 +243,48 @@ def calculate_damage(attacking, receiving):
 
     #---------------------------------------------------------------------------------
     for i, letter in enumerate(attacking.lets):
+
+        data = deity.LetterData[letter.char]
+        power = data[0]
+        phySpc = data[1]
+        attribute = data[2]
+        direction = data[3]
+        who = attacking if data[4] == 'user' else receiving
+        accuracy = data[5]
+
         letterType = letter.battleType
-        letterDmg = letter.power
         oppType = receiving.battleType
-        letterStat = letter.statChange.split(",")
-
-        attribute = letterStat[0] # no need to change
-        direction = 1 if letterStat[1] == 'increase' else -1 if letterStat[1] == 'decrease' else letterStat[1] # increase, decrease, 'burn'
-        who = attacking if letterStat[1] == 'user' else receiving
-
-        
 
         if attribute == 'curHP':
             if letterType in weaknesses[oppType]:
-                base_damage += letterDmg + 10
+                base_damage += power + 10
             elif letterType in resistances[oppType]:
-                base_damage += (letterDmg // 2)
+                base_damage += (power // 2)
             else:
-                base_damage += letterDmg
+                base_damage += power
 
-        elif attribute in ('attack', 'defense', 'accuracy'):
-            attribute = "temp" + attribute if i >0 else attribute # defense or tempdefense stat
+        elif attribute in ('attack', 'defense', 'accuracy', 'speed'):
+            attribute = "cur" + attribute if i >0 else attribute # defense or tempdefense stat
             changedHow = "increased" if direction == 1 else "decreased"
             setattr(who, attribute, getattr(who, attribute) + direction) # --- do this chat gbt
             thePerson = "it's" if who == attacking else str(receiving.name)
             curDialog.append(f"[{letter.char} : {str(i+1)}] {changedHow}")
             curDialog.append(f"{thePerson} {attribute}")
+
+
+    if base_damage != 5 and base_damage != 0:
+
+        print(f"{attacking.curattack}")
+        print(f"{receiving.curdefense}")
+        print(f"{base_damage}")
+        
+
+        base_damage = int((attacking.curattack/receiving.curdefense) * base_damage)
+        if base_damage < 5:
+            base_damage = 5
+
+        print(f"{base_damage}")
+        print("")
 
     return base_damage
 
@@ -510,21 +525,97 @@ def drawSideSelect():
         pygame.draw.rect(screen, backColor if not SSC[3] else selectedColor, (secondStart + 40, ipY + 45, 20, 20))
 
 
+def randomDeityTeam():
+    deities = []
+
+    try:
+        with open("deity_list.txt", "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                parts = line.strip().split("|")
+                if len(parts) < 9:
+                    continue  # Skip malformed lines
+                
+                # Parse deity information
+                name = parts[0]
+                
+                # Handle the letter part (strip brackets and split)
+                letter_strs = parts[1].strip('[]').split("],[")
+
+                # Convert each letter string to a Letter object
+                letters = [deity.Letter.fromString(letter_str) for letter_str in letter_strs]
+
+                battleType = str(parts[2])
+                battleType2 = parts[3] if parts[3] != "None" else None
+                attack, defense, special, accuracy, speed = map(int, parts[4:9])
+
+                # Build the deity directly from file data
+                dty = deity.Deity.__new__(deity.Deity)  # Bypass __init__
+                dty.name = name
+                dty.letters = letters
+                dty.battleType = battleType
+                dty.battleType2 = battleType2
+                dty.attack = attack
+                dty.defense = defense
+                dty.special = special
+                dty.accuracy = accuracy
+                dty.speed = speed
+                
+                # Initialize dynamic attributes
+                dty.comboStamina = 5
+                dty.lets = []
+                dty.protect = 0
+                dty.turnStart = 0
+                dty.maxHP = 250
+                dty.curHP = dty.maxHP
+                dty.curattack = dty.attack
+                dty.curdefense = dty.defense
+                dty.curspecial = dty.special
+                dty.curaccuracy = dty.accuracy
+                dty.curspeed = dty.speed
+                dty.tempattack = 0
+                dty.tempdefense = 0
+                dty.tempspecial = 0
+                dty.tempaccuracy = 0
+
+                deities.append(dty)
+
+    except FileNotFoundError:
+        print("deity_list.txt not found. Ensure it exists.")
+
+    if len(deities) < 4:
+        print("Not enough deities in file. Please generate more.")
+        return []
+
+    return random.sample(deities, 4)  # Return 4 random deities
+
+
+
+
 
 def loadTeams():
     global player1, player2, enemy, enemy2, playerTeam, enemyTeam
 
-    pD1 = deity.Deity("Gunther", get_random_letters())
-    pD3 = deity.Deity("Gpla2", get_random_letters())
-    playerTeam = [pD1, pD3]
-    player1 = copy.deepcopy(playerTeam[0]) # must make deep copy
+    # Creates and stores deities in deity_list.txt
+    for i in range(0, 20):
+        d = deity.Deity()
+        d.save_to_file()
 
-    en1= deity.Deity("Hugh Janus", get_random_letters())
-    en2 = deity.Deity("en2", get_random_letters())
-    enemyTeam = [en1, en2]
+    # each team needs 4 random deities that are drawn from the deity 
+
+    playerTeam = randomDeityTeam()
+    player1 = copy.deepcopy(playerTeam[0])
+
+    enemyTeam = randomDeityTeam()
     enemy = copy.deepcopy(enemyTeam[0])
-    # split afterwards, may start split, but not right now
-    separateDeity(False)
+    separateDeity(False) # for debug
+
+
+
+
+
+
+
 
 
 def separateDeity(isPlayer):
@@ -851,11 +942,8 @@ def main():
                                     y = playY + buttonY
 
                                     if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                        if letter not in player1.lets and letter and (not player2 or letter not in player2.lets) and not mustAlone(player1, letter):
+                                        if letter not in player1.lets and letter and (not player2 or letter not in player2.lets):
                                             player1.lets.append(letter)
-                                        elif mustAlone(player1, letter):
-                                            curDialog.append(f"{player1.name}'s {letter.char} must be alone")
-                                            curDialog.append("")
                                         else:
                                             player1.lets.remove(letter)
 
@@ -866,11 +954,8 @@ def main():
                                     y = playY + buttonY
 
                                     if x <= event.pos[0] <= x + 40 and y <= event.pos[1] <= y + 40:
-                                        if letter not in player2.lets and letter not in player2.lets and not mustAlone(player2, letter):
+                                        if letter not in player2.lets and letter not in player2.lets:
                                             player2.lets.append(letter)
-                                        elif mustAlone(player2, letter):
-                                            curDialog.appebd(f"{player2.name}'s {letter.char} must be alone")
-                                            curDialog.append("")
                                         else:
                                             player2.lets.remove(letter)
 
@@ -908,10 +993,21 @@ def main():
                 if click and rect.collidepoint(mouse_x, mouse_y) and not showSwitchMenu:
 
                     if btn == "Battle" and (player1.lets or (player2 and player2.lets)): #----------------------------------------------------------
+
+
+                        mustAlone = False
+
+                        for prsn in (player1, player2):
+                            if prsn and prsn.lets:
+                                chars = [l.char for l in prsn.lets]  # Extract characters
+                                if any(c in ('G', 'P') for c in chars):  # Check if 'G' or 'P' exists
+                                    if len(chars) > 1:  # Ensure there are other characters
+                                        mustAlone = True
+
+
                         
                         # needAim(player)
-
-                        if sideSelect:# the aiming for side select, which letter's need which side----------
+                        if sideSelect and not mustAlone:# the aiming for side select, which letter's need which side----------
                             LTarg = (SSC[0] or SSC[1])
                             RTarg = (SSC[2] or SSC[3])
 
@@ -920,6 +1016,9 @@ def main():
                                     playerTurn = False
                                     sideSelect = False
 
+                        elif mustAlone:
+                            curDialog.append("Some letters must be alone")
+                            curDialog.append('G, PS')
 
                         else:
                             stamina_cost = player1.calculate_combo_stamina_cost()
