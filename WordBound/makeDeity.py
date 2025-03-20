@@ -1,4 +1,4 @@
-import pygame # type: ignore
+import pygame  # type: ignore
 import random
 
 # Initialize PyGame
@@ -79,32 +79,27 @@ class Scrollbar:
         self.maxWidth = width
         self.curWidth = int(self.maxWidth * (self.value - self.min_val) / (self.max_val - self.min_val))
 
-
         self.handle_height = 20  # Fixed handle height
         self.handle_rect = pygame.Rect(x, y, width, self.handle_height)
         self.dragging = False
 
     def draw(self, screen):
-
         pygame.draw.rect(screen, GRAY, (self.x, self.y, self.maxWidth, self.height))
         pygame.draw.rect(screen, BLUE, (self.x, self.y, self.curWidth, self.height))
 
-        stuff = f"{self.value}   {self.statName}" 
+        stuff = f"{self.value}   {self.statName}"
         value_text = small_font.render(stuff, True, BLACK)
         screen.blit(value_text, (self.rect.x + self.rect.width + 10, self.rect.y))
-
 
     def handle_event(self, event):
         mouse_x, mouse_y = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()[0]
 
-
         if click and self.rect.collidepoint(mouse_x, mouse_y):
             self.dragging = True
         else:
             self.dragging = False
-            
-        
+
         if event.type == pygame.MOUSEMOTION and self.dragging:
             value = self.min_val + ((mouse_x - self.x) * (self.max_val - self.min_val)) / self.maxWidth
             value = max(self.min_val, min(value, self.max_val))
@@ -112,9 +107,6 @@ class Scrollbar:
             if value % 2 != 0:
                 value += 1
             self.value = int(value)
-            
-
-
 
 class Dropdown:
     def __init__(self, x, y, width, height, options, visible_items=4):
@@ -182,129 +174,35 @@ class Dropdown:
             self.scroll_offset = max(0, min(self.scroll_offset, len(self.options) - self.visible_items))
 
 
-            
 
-# Letter data
-LetterData = {
-    'A': [25, 'physical', 'curHP', -1, 'opponent', 100],
-    'B': [25, 'special', 'curHP', -1, 'opponent', 100],
-    'C': [15, 'physical', 'curHP', -1, 'opponent', 100],
-    'D': [15, 'special', 'curHP', -1, 'opponent', 100],
-    'E': [0, None, 'attack', -1, 'opponent', 100],
-    'F': [0, None, 'attack', 1, 'user', 100],
-    'G': [0, None, 'protect', 1, 'user', 100],
-    'H': [0, None, 'defense', -1, 'opponent', 100],
-    'I': [0, None, 'defense', 1, 'user', 100],
-    'J': [0, None, 'accuracy', -1, 'opponent', 100],
-    'K': [0, None, 'accuracy', 1, 'user', 100],
-    'L': [0, None, 'perish', 1, 'all', 100],
-    'M': [0, None, 'weather', 1, 'all', 100],
-    'N': [0, None, 'trap', 1, 'opponent', 100],
-    'O': [0, None, 'multi-attack', 1, 'user', 100],
-    'P': [0, None, 'multi-stat', 1, 'user', 100],
-    'Q': [0, None, 'multi-attack', -1, 'opponent', 100],
-    'R': [0, None, 'multi-stat', -1, 'opponent', 100],
-    'S': [10, 'physical', 'Fake-out', -1, 'opponent', 100],
-    'T': [0, None, 'burn', 1, 'opponent', 100],
-    'U': [0, None, 'shock', 1, 'opponent', 100],
-    'V': [0, None, 'freeze', 1, 'opponent', 100],
-    'W': [0, None, 'speed', -1, 'opponent', 100],
-    'X': [0, None, 'speed', 1, 'user', 100],
-}
 
-# Letter class
-class Letter:
-    def __init__(self, char, battleType=None, tier=None):
-        self.char = char.upper()
-        self.battleType = battleType if battleType is not None else self.ranColor()
-        self.tier = tier if tier is not None else random.randint(1, 3)
+# RadioButton class for letters A-Z
+# RadioButton class for letters A-Z
+class RadioButton:
+    def __init__(self, x, y, size, letter):
+        self.rect = pygame.Rect(x, y, size, size)
+        self.letter = letter
+        self.selected = False
 
-    def ranColor(self):
-        colors = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
-        return random.choice(colors)
+    def draw(self, screen):
+        # Draw the outline (grey by default)
+        # pygame.draw.rect(screen, BLUE, self.rect)
 
-    def toString(self):
-        return f"[{self.char},{self.battleType},{self.tier}]"
-
-    @classmethod
-    def fromString(cls, letter_string):
-        parts = [part.strip() for part in letter_string.split(",")]
-        if len(parts) != 3:
-            raise ValueError("Invalid letter string format.")
-        char = parts[0]
-        battleType = parts[1]
-        tier = int(parts[2])
-        return cls(char, battleType, tier)
-
-# Deity class
-class Deity:
-    def __init__(self, name=None):
-        self.name = name if name is not None else str(random.randint(0, 101))
-        self.maxHP = 250
-        self.letters = self.get_random_letters()
-        self.attack = random.randint(50, 250)
-        self.defense = random.randint(50, 250)
-        self.special = random.randint(50, 250)
-        self.accuracy = 100
-        self.speed = random.randint(50, 250)
-        self.comboStamina = 5
-        self.battleType, self.battleType2 = self.assign_battle_types()
-        self.lets = []
-        self.protect = 0
-        self.turnStart = 0
-        self.curHP = self.maxHP
-        self.curattack = self.attack
-        self.curdefense = self.defense
-        self.curspecial = self.special
-        self.curaccuracy = self.accuracy
-        self.curspeed = self.speed
-        self.tempattack = 0
-        self.tempdefense = 0
-        self.tempspecial = 0
-        self.tempaccuracy = 0
-
-    def get_random_letters(self):
-        letter_options = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
-        return [Letter(random.choice(letter_options)) for _ in range(5)]
-
-    def assign_battle_types(self):
-        colors = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
-        primary = random.choice(colors)
-        if random.random() < 1/3:
-            secondary = None
+        # If selected, fill the rectangle with blue
+        if self.selected:
+            pygame.draw.rect(screen, BLUE, self.rect, 2)
         else:
-            secondary = random.choice([c for c in colors if c != primary])
-        return primary, secondary
+            pygame.draw.rect(screen, GRAY, self.rect, 2)
 
-    def save_to_file(self):
-        with open("deity_list.txt", "a") as file:
-            letters_str = ",".join([letter.toString() for letter in self.letters])
-            file.write(f"{self.name}|{letters_str}|{self.battleType}|{self.battleType2}|{self.attack}|{self.defense}|{self.special}|{self.accuracy}|{self.speed}\n")
 
-    @classmethod
-    def load_from_file(cls, filename):
-        deities = []
-        with open(filename, "r") as file:
-            for line in file:
-                parts = line.strip().split("|")
-                if len(parts) != 9:
-                    continue
-                deity = cls(parts[0])
-                deity.letters = [Letter.fromString(letter_str) for letter_str in parts[1].split(",")]
-                deity.battleType = parts[2]
-                deity.battleType2 = parts[3]
-                deity.attack = int(parts[4])
-                deity.defense = int(parts[5])
-                deity.special = int(parts[6])
-                deity.accuracy = int(parts[7])
-                deity.speed = int(parts[8])
-                deities.append(deity)
-        return deities
+        # Draw the letter text
+        text_surface = small_font.render(self.letter, True, BLACK)
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        screen.blit(text_surface, text_rect)
 
-# Main application
-# Main application
-# Main application
-# Main application
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
+
 # Main application
 def main():
     clock = pygame.time.Clock()
@@ -325,25 +223,26 @@ def main():
 
     # Dropdowns for types
     type_options = ["red", "blue", "green", "brown", "lime", "yellow", "black", "white", "grey", "cyan", "magenta", "orange", "purple", "maroon"]
-    primary_type_dropdown = Dropdown(50, 450, 200, 30, type_options)  # Smaller dropdown
-    secondary_type_dropdown = Dropdown(300, 450, 200, 30, type_options + ["None"])  # Smaller dropdown
+    primary_type_dropdown =   Dropdown(50, 450, 150, 30, type_options)  # Smaller dropdown
+    secondary_type_dropdown = Dropdown(250, 450, 150, 30, type_options) 
+    third_type_dropdown =     Dropdown(450, 450, 150, 30, type_options)
+    four_type_dropdown =      Dropdown(650, 450, 150, 30, type_options)
 
-    # Add 5 TextInputs for letters
-    letter_inputs = [TextInput(550, 50 + i * 60, 40, 40, "") for i in range(5)]
-
-    # Add 5 Dropdowns for tiers
-    tier_options = ["1", "2", "3", "4", "5"]
-    tier_dropdowns = [Dropdown(625, 50 + i * 60, 40, 30, tier_options) for i in range(5)]
-
-    # Add 5 Dropdowns for battle types
-    battleType_dropdowns = [Dropdown(700, 50 + i * 60, 85, 30, type_options) for i in range(5)]
-
-    # List to store the selected letters/moves
-    selected_letters = []
+    # Radio buttons for letters A-Z
+    radio_buttons = []
+    start_x = 600
+    start_y = 50
+    button_size = 30
+    spacing = 10
+    letters = [chr(i) for i in range(ord('A'), ord('Z')+1)]
+    for i, letter in enumerate(letters):
+        x = start_x + (i % 5) * (button_size + spacing)
+        y = start_y + (i // 5) * (button_size + spacing)
+        radio_buttons.append(RadioButton(x, y, button_size, letter))
 
     # Modify the main loop to handle the new UI elements
     while running:
-        screen.fill(WHITE)
+        screen.fill((0,0,155))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -351,8 +250,6 @@ def main():
 
             # Handle text input
             name_input.handle_event(event)
-            for letter_input in letter_inputs:
-                letter_input.handle_event(event)
 
             # Handle scrollbars
             hp_scrollbar.handle_event(event)
@@ -364,60 +261,41 @@ def main():
             # Handle dropdowns
             primary_type_dropdown.handle_event(event)
             secondary_type_dropdown.handle_event(event)
-            for tier_dropdown in tier_dropdowns:
-                tier_dropdown.handle_event(event)
-            for battleType_dropdown in battleType_dropdowns:
-                battleType_dropdown.handle_event(event)
+            third_type_dropdown.handle_event(event)
+            four_type_dropdown.handle_event(event)
+
+            # Handle radio buttons
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for rb in radio_buttons:
+                    if rb.is_clicked(event.pos):
+                        rb.selected = not rb.selected
 
             # Handle button clicks
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if create_button.is_clicked(event.pos):
                     name = name_input.text
                     if name:
-                        # Validate and collect the selected letters
-                        selected_letters = []
-                        for i in range(5):
-                            letter = letter_inputs[i].text.upper()
-                            tier = tier_dropdowns[i].selected
-                            battleType = battleType_dropdowns[i].selected
+                        # Collect the selected letters
+                        selected_letters = [rb.letter for rb in radio_buttons if rb.selected]
+                        if selected_letters:
+                            # Format the deity data
+                            deity_data = (
+                                f"{name}|{selected_letters}|{primary_type_dropdown.selected}|"
+                                f"{secondary_type_dropdown.selected}|{third_type_dropdown.selected}|"
+                                f"{four_type_dropdown.selected}|{attack_scrollbar.value}|"
+                                f"{defense_scrollbar.value}|{special_scrollbar.value}|"
+                                f"{speed_scrollbar.value}\n"
+                            )
 
-                            # Validate the letter
-                            if len(letter) == 1 and (letter.isalpha() or letter.isdigit()):
-                                # Validate the tier
-                                if tier in tier_options:
-                                    # Format the letter string correctly
-                                    selected_letters.append(f"{letter},{battleType},{tier}")
-                                else:
-                                    output_text = f"Please select a tier between 1 and 5."
-                                    break
-                            else:
-                                output_text = f"Please enter a single capital letter or number."
-                                break
+                            # Save the deity data to the file
+                            with open("DeityList.txt", "a") as file:
+                                file.write(deity_data)
+
+                            output_text = "Deity saved successfully!"
                         else:
-                            # If all letters are valid, create the deity
-                            try:
-                                print("Selected Letters:", selected_letters)  # Debugging
-                                deity = Deity(name)
-                                deity.maxHP = hp_scrollbar.value
-                                deity.attack = attack_scrollbar.value
-                                deity.defense = defense_scrollbar.value
-                                deity.special = special_scrollbar.value
-                                deity.speed = speed_scrollbar.value
-                                deity.battleType = primary_type_dropdown.selected
-                                deity.battleType2 = secondary_type_dropdown.selected if secondary_type_dropdown.selected != "None" else None
-                                deity.letters = [Letter.fromString(letter) for letter in selected_letters]
-                                deity.save_to_file()
-                                output_text = f"Created deity: {deity.name}"
-                            except ValueError as e:
-                                output_text = f"Error creating deity: {e}"
+                            output_text = "Please select at least one letter."
                     else:
                         output_text = "Please enter a name for the deity."
-                elif view_button.is_clicked(event.pos):
-                    try:
-                        deities = Deity.load_from_file("deity_list.txt")
-                        output_text = "\n".join([f"Deity: {deity.name}, Letters: {[letter.toString() for letter in deity.letters]}" for deity in deities])
-                    except Exception as e:
-                        output_text = f"Error loading deities: {e}"
 
         # Draw UI elements
         create_button.draw(screen)
@@ -430,19 +308,12 @@ def main():
         speed_scrollbar.draw(screen)
         primary_type_dropdown.draw(screen)
         secondary_type_dropdown.draw(screen)
+        third_type_dropdown.draw(screen)
+        four_type_dropdown.draw(screen)
 
-        # Draw letter inputs, tier dropdowns, and battle type dropdowns
-        for i in range(5):
-            letter_inputs[i].draw(screen)
-            tier_dropdowns[i].draw(screen)
-            battleType_dropdowns[i].draw(screen)
-
-        # Draw selected letters
-        y_offset = 590
-        for letter in selected_letters:
-            text_surface = small_font.render(letter, True, BLACK)
-            screen.blit(text_surface, (50, y_offset))
-            y_offset += 30
+        # Draw radio buttons
+        for rb in radio_buttons:
+            rb.draw(screen)
 
         # Draw output text
         text_surface = font.render(output_text, True, BLACK)
