@@ -84,12 +84,19 @@ class Scrollbar:
         self.dragging = False
 
     def draw(self, screen):
+        # Draw the black outline slightly larger than the scrollbar
+        pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, self.maxWidth + 4, self.height + 4))  
+        
+        # Draw the grey background bar
         pygame.draw.rect(screen, GRAY, (self.x, self.y, self.maxWidth, self.height))
+        
+        # Draw the blue filled portion
         pygame.draw.rect(screen, BLUE, (self.x, self.y, self.curWidth, self.height))
 
         stuff = f"{self.value}   {self.statName}"
         value_text = small_font.render(stuff, True, BLACK)
         screen.blit(value_text, (self.rect.x + self.rect.width + 10, self.rect.y))
+
 
     def handle_event(self, event):
         mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -242,7 +249,7 @@ def main():
 
     # Modify the main loop to handle the new UI elements
     while running:
-        screen.fill((0,0,155))
+        screen.fill((85,150,230))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -276,7 +283,7 @@ def main():
                     name = name_input.text
                     if name:
                         # Collect the selected letters
-                        selected_letters = [rb.letter for rb in radio_buttons if rb.selected]
+                        selected_letters = ",".join(rb.letter for rb in radio_buttons if rb.selected)
                         if selected_letters:
                             # Format the deity data
                             deity_data = (
@@ -288,7 +295,7 @@ def main():
                             )
 
                             # Save the deity data to the file
-                            with open("DeityList.txt", "a") as file:
+                            with open("Deity_DB.txt", "a") as file:
                                 file.write(deity_data)
 
                             output_text = "Deity saved successfully!"
